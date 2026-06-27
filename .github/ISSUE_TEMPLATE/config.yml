@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Tradeoffs and known limitations
+    url: https://github.com/Topzee001/blurly/blob/main/docs/TRADEOFFS.md
+    about: Read this before filing segmentation-quality issues.
+  - name: Support guide
+    url: https://github.com/Topzee001/blurly/blob/main/SUPPORT.md
+    about: Learn what to include when asking for help.

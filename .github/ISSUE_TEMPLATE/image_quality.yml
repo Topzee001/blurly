@@ -1,0 +1,64 @@
+name: Image quality issue
+description: Report poor background blur, bad masks, or subject-edge problems.
+title: "Image quality: "
+labels:
+  - image-quality
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Blurly's current model is strongest on people and weakest on arbitrary
+        objects. Please read docs/TRADEOFFS.md before filing.
+  - type: dropdown
+    id: subject
+    attributes:
+      label: Subject type
+      options:
+        - Person
+        - Object
+        - Product
+        - Document
+        - Pet
+        - Multiple subjects
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Blur mode
+      options:
+        - Background
+        - Person
+        - Bokeh
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What was wrong?
+      description: Describe which parts of the subject/background were handled incorrectly.
+      placeholder: The laptop screen stayed sharp but the keyboard was blurred.
+    validations:
+      required: true
+  - type: textarea
+    id: image_traits
+    attributes:
+      label: Image details
+      placeholder: |
+        Subject centered: yes/no
+        Subject touches frame edge: yes/no
+        Background is cluttered: yes/no
+        Similar colors between subject/background: yes/no
+    validations:
+      required: true
+  - type: input
+    id: blur_amount
+    attributes:
+      label: Blur intensity
+      placeholder: 19
+  - type: textarea
+    id: sample
+    attributes:
+      label: Safe sample image or screenshot
+      description: Attach only images you have permission to share publicly.
