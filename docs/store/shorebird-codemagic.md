@@ -38,6 +38,10 @@ In the app Workflow Editor, switch to YAML configuration. Shorebird's Codemagic
 integration needs `codemagic.yaml`; the visual Workflow Editor cannot fully
 represent the Shorebird release command.
 
+The workflow enables Flutter Swift Package Manager support before `flutter pub
+get` because `receive_sharing_intent` requires it on CI, even for Android-only
+release builds.
+
 In Codemagic, create these environment groups:
 
 - `shorebird`

@@ -24,7 +24,9 @@ definitions:
 
     - &fetch_dependencies
       name: Fetch dependencies
-      script: flutter pub get
+      script: |
+        flutter config --enable-swift-package-manager
+        flutter pub get
 
     - &verify_flutter
       name: Verify Flutter project
