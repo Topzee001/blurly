@@ -67,6 +67,23 @@ class BlurController extends StateNotifier<BlurState> {
     }
   }
 
+  Future<void> loadSharedImage(BlurImage image) async {
+    _clearMessages();
+    try {
+      state = state.copyWith(
+        selectedImage: image,
+        processedImage: null,
+        showOriginal: false,
+        errorMessage: null,
+        successMessage: null,
+      );
+
+      await processSelectedImage();
+    } catch (error) {
+      state = state.copyWith(errorMessage: _friendlyError(error));
+    }
+  }
+
   void updateBlurAmount(double value) {
     state = state.copyWith(
       blurAmount: value.clamp(0, 40).toDouble(),

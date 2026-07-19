@@ -1,0 +1,138 @@
+definitions:
+  environment:
+    android_shorebird_env: &android_shorebird_env
+      flutter: 3.41.2
+      groups:
+        - shorebird
+      vars:
+        FLUTTER_VERSION: 3.41.2
+
+    android_play_env: &android_play_env
+      flutter: 3.41.2
+      groups:
+        - shorebird
+        - play_store
+      vars:
+        FLUTTER_VERSION: 3.41.2
+
+  scripts:
+    - &install_shorebird
+      name: Install Shorebird
+      script: |
+        curl --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh -sSf | bash
+        echo PATH="$HOME/.shorebird/bin:$PATH" >> "$CM_ENV"
+
+    - &fetch_dependencies
+      name: Fetch dependencies
+      script: flutter pub get
+
+    - &verify_flutter
+      name: Verify Flutter project
+      script: |
+        dart format --output=none --set-exit-if-changed lib test integration_test
+        flutter analyze
+        flutter test
+
+workflows:
+  android-shorebird-build-aab:
+    name: Android Shorebird Build AAB
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      <<: *android_shorebird_env
+      android_signing:
+        - blurly_upload_keystore
+    cache:
+      cache_paths:
+        - ~/.pub-cache
+        - ~/.gradle/caches
+    scripts:
+      - *install_shorebird
+      - *fetch_dependencies
+      - *verify_flutter
+      - name: Create Shorebird Android release
+        script: |
+          : "${SHOREBIRD_TOKEN:?Set SHOREBIRD_TOKEN in the Codemagic shorebird group.}"
+          : "${CM_KEYSTORE_PATH:?Upload the Android keystore to Codemagic with reference blurly_upload_keystore.}"
+
+          shorebird release android \
+            --artifact=aab \
+            --flutter-version="$FLUTTER_VERSION"
+    artifacts:
+      - build/**/outputs/**/*.aab
+      - build/**/outputs/**/mapping.txt
+      - flutter_drive.log
+
+  android-shorebird-publish:
+    name: Android Shorebird Publish To Play
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    inputs:
+      play_track:
+        description: Google Play track. Use internal first, alpha for closed testing, production after Play grants production access.
+        type: choice
+        default: internal
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+    environment:
+      <<: *android_play_env
+      android_signing:
+        - blurly_upload_keystore
+    cache:
+      cache_paths:
+        - ~/.pub-cache
+        - ~/.gradle/caches
+    scripts:
+      - *install_shorebird
+      - *fetch_dependencies
+      - *verify_flutter
+      - name: Create Shorebird Android release
+        script: |
+          : "${SHOREBIRD_TOKEN:?Set SHOREBIRD_TOKEN in the Codemagic shorebird group.}"
+          : "${CM_KEYSTORE_PATH:?Upload the Android keystore to Codemagic with reference blurly_upload_keystore.}"
+          : "${GCLOUD_SERVICE_ACCOUNT_CREDENTIALS:?Set GCLOUD_SERVICE_ACCOUNT_CREDENTIALS in the Codemagic play_store group.}"
+
+          shorebird release android \
+            --artifact=aab \
+            --flutter-version="$FLUTTER_VERSION"
+    artifacts:
+      - build/**/outputs/**/*.aab
+      - build/**/outputs/**/mapping.txt
+      - flutter_drive.log
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: ${{ inputs.play_track }}
+        submit_as_draft: true
+
+  android-shorebird-patch:
+    name: Android Shorebird Patch
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    inputs:
+      release_version:
+        description: Shorebird release version to patch, e.g. 1.0.0+12 or latest.
+        type: string
+        default: latest
+    environment:
+      <<: *android_shorebird_env
+      android_signing:
+        - blurly_upload_keystore
+    cache:
+      cache_paths:
+        - ~/.pub-cache
+        - ~/.gradle/caches
+    scripts:
+      - *install_shorebird
+      - *fetch_dependencies
+      - *verify_flutter
+      - name: Create Shorebird Android patch
+        script: |
+          : "${SHOREBIRD_TOKEN:?Set SHOREBIRD_TOKEN in the Codemagic shorebird group.}"
+          : "${CM_KEYSTORE_PATH:?Upload the Android keystore to Codemagic with reference blurly_upload_keystore.}"
+
+          shorebird patch android \
+            --release-version=${{ inputs.release_version }}

@@ -28,7 +28,7 @@ Improving this is the main open-source contribution area.
 - Process images locally with TensorFlow Lite.
 - Run heavy image work in an isolate.
 - Downscale very large images before processing.
-- Adjust blur intensity from 0 to 40.
+- Adjust blur intensity from 0% to 100%.
 - Toggle original/processed preview.
 - Save processed PNGs to the gallery.
 - Share processed PNGs.

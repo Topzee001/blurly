@@ -1,3 +1,4 @@
+import 'package:blurly/core/theme/theme_mode_provider.dart';
 import 'package:blurly/features/blur/presentation/controllers/blur_providers.dart';
 import 'package:blurly/features/blur/presentation/widgets/blur_bottom_action_bar.dart';
 import 'package:blurly/features/blur/presentation/widgets/blur_controls.dart';
@@ -26,7 +27,11 @@ class BlurPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Blurly'),
-        actions: const [_BeforeAfterToggle()],
+        actions: const [
+          _PrivacyPolicyAction(),
+          _ThemeModeToggle(),
+          _BeforeAfterToggle(),
+        ],
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -101,6 +106,74 @@ class BlurPage extends ConsumerWidget {
               : colorScheme.inverseSurface,
         ),
       );
+  }
+}
+
+class _PrivacyPolicyAction extends StatelessWidget {
+  const _PrivacyPolicyAction();
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Privacy policy',
+      child: IconButton(
+        key: const ValueKey('privacyPolicyButton'),
+        onPressed: () => _showPrivacyPolicy(context),
+        icon: const Icon(Icons.privacy_tip_outlined),
+      ),
+    );
+  }
+
+  void _showPrivacyPolicy(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Privacy Policy'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'Blurly processes photos locally on your device. It does not '
+            'collect, sell, or share personal data with the developer or a '
+            'remote server.\n\n'
+            'Camera and photo permissions are used only when you choose to '
+            'pick, capture, save, or share an image. If you share a processed '
+            'image with another app, that transfer is initiated by you through '
+            "Android's share sheet.",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeModeToggle extends ConsumerWidget {
+  const _ThemeModeToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+    final systemBrightness = MediaQuery.platformBrightnessOf(context);
+    final isDark =
+        themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system && systemBrightness == Brightness.dark);
+
+    return Tooltip(
+      message: isDark ? 'Switch to light theme' : 'Switch to dark theme',
+      child: IconButton(
+        key: const ValueKey('themeModeToggle'),
+        onPressed: () {
+          ref.read(themeModeProvider.notifier).state = isDark
+              ? ThemeMode.light
+              : ThemeMode.dark;
+        },
+        icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+      ),
+    );
   }
 }
 

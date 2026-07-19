@@ -73,6 +73,8 @@ class _ModeSelector extends ConsumerWidget {
 class _BlurSlider extends ConsumerWidget {
   const _BlurSlider();
 
+  static const double _maxBlurAmount = 40;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final blurAmount = ref.watch(
@@ -82,6 +84,7 @@ class _BlurSlider extends ConsumerWidget {
       blurControllerProvider.select((state) => state.isProcessing),
     );
     final labelStyle = Theme.of(context).textTheme.labelLarge;
+    final intensityLabel = _intensityPercentageLabel(blurAmount);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -90,7 +93,7 @@ class _BlurSlider extends ConsumerWidget {
             Text('Intensity', style: labelStyle),
             const Spacer(),
             Text(
-              blurAmount.round().toString(),
+              intensityLabel,
               style: labelStyle?.copyWith(
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -101,14 +104,21 @@ class _BlurSlider extends ConsumerWidget {
           key: const ValueKey('blurSlider'),
           value: blurAmount,
           min: 0,
-          max: 40,
+          max: _maxBlurAmount,
           divisions: 40,
-          label: blurAmount.round().toString(),
+          label: intensityLabel,
+          semanticFormatterCallback: _intensityPercentageLabel,
           onChanged: isProcessing
               ? null
               : ref.read(blurControllerProvider.notifier).updateBlurAmount,
         ),
       ],
     );
+  }
+
+  static String _intensityPercentageLabel(double value) {
+    final percentage = (value.clamp(0, _maxBlurAmount) / _maxBlurAmount * 100)
+        .round();
+    return '$percentage%';
   }
 }

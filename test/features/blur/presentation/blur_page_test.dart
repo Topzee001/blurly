@@ -33,6 +33,7 @@ void main() {
     expect(repository.pickCount, 1);
     expect(repository.processCount, 1);
     expect(find.byKey(const ValueKey('blurSlider')), findsOneWidget);
+    expect(find.text('45%'), findsOneWidget);
   });
 
   testWidgets('slider interaction updates blur intensity', (tester) async {
@@ -78,5 +79,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Original'), findsOneWidget);
+  });
+
+  testWidgets('theme toggle switches between dark and light icons', (
+    tester,
+  ) async {
+    await pumpBlurPage(tester);
+
+    expect(find.byIcon(Icons.dark_mode), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('themeModeToggle')));
+    await tester.pump();
+
+    expect(find.byIcon(Icons.light_mode), findsOneWidget);
+  });
+
+  testWidgets('privacy policy action opens privacy copy', (tester) async {
+    await pumpBlurPage(tester);
+
+    await tester.tap(find.byKey(const ValueKey('privacyPolicyButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Privacy Policy'), findsOneWidget);
+    expect(find.textContaining('processes photos locally'), findsOneWidget);
   });
 }

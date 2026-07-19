@@ -1,5 +1,6 @@
 import 'package:blurly/features/blur/data/datasources/gallery_share_data_source.dart';
 import 'package:blurly/features/blur/data/datasources/image_picker_data_source.dart';
+import 'package:blurly/features/blur/data/datasources/incoming_share_data_source.dart';
 import 'package:blurly/features/blur/data/repositories/blur_repository_impl.dart';
 import 'package:blurly/features/blur/data/services/selfie_segmentation_model_loader.dart';
 import 'package:blurly/features/blur/domain/repositories/blur_repository.dart';
@@ -15,6 +16,12 @@ import 'package:flutter_riverpod/legacy.dart';
 
 final imagePickerDataSourceProvider = Provider<ImagePickerDataSource>((ref) {
   return ImagePickerDataSource();
+});
+
+final incomingShareDataSourceProvider = Provider<IncomingSharedDataSource>((
+  ref,
+) {
+  return const IncomingSharedDataSource();
 });
 
 final galleryShareDataSourceProvider = Provider<GalleryShareDataSource>((ref) {
