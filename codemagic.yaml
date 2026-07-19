@@ -35,6 +35,47 @@ definitions:
         flutter analyze
         flutter test
 
+    - &verify_android_signing
+      name: Verify Android signing identity
+      script: |
+        set -e
+
+        : "${CM_KEYSTORE_PATH:?Upload the Android keystore to Codemagic with reference blurly_upload_keystore.}"
+        : "${CM_KEYSTORE_PASSWORD:?Set the keystore password on the Codemagic Android signing identity.}"
+        : "${CM_KEY_ALIAS:?Set the key alias on the Codemagic Android signing identity.}"
+        : "${CM_KEY_PASSWORD:?Set the key password on the Codemagic Android signing identity.}"
+
+        keytool -list \
+          -keystore "$CM_KEYSTORE_PATH" \
+          -storepass "$CM_KEYSTORE_PASSWORD" \
+          -alias "$CM_KEY_ALIAS" \
+          >/dev/null
+
+        signing_check_file="$CM_BUILD_DIR/signing-check.p12"
+        rm -f "$signing_check_file"
+
+        if ! keytool -importkeystore \
+          -srckeystore "$CM_KEYSTORE_PATH" \
+          -srcstorepass "$CM_KEYSTORE_PASSWORD" \
+          -srcalias "$CM_KEY_ALIAS" \
+          -srckeypass "$CM_KEY_PASSWORD" \
+          -destkeystore "$signing_check_file" \
+          -deststoretype PKCS12 \
+          -deststorepass "$CM_KEYSTORE_PASSWORD" \
+          -destkeypass "$CM_KEY_PASSWORD" \
+          -noprompt \
+          >/dev/null; then
+          echo "Could not recover the Android signing key."
+          echo "In Codemagic, edit the blurly_upload_keystore signing identity and confirm:"
+          echo "- Keystore password is the store password used when the .jks was created."
+          echo "- Key alias is exactly: blurly"
+          echo "- Key password is the alias/key password, often the same as the store password."
+          exit 1
+        fi
+
+        rm -f "$signing_check_file"
+        echo "Android signing identity is readable."
+
 workflows:
   android-shorebird-build-aab:
     name: Android Shorebird Build AAB
@@ -51,6 +92,7 @@ workflows:
     scripts:
       - *install_shorebird
       - *fetch_dependencies
+      - *verify_android_signing
       - *verify_flutter
       - name: Create Shorebird Android release
         script: |
@@ -90,6 +132,7 @@ workflows:
     scripts:
       - *install_shorebird
       - *fetch_dependencies
+      - *verify_android_signing
       - *verify_flutter
       - name: Create Shorebird Android release
         script: |
@@ -130,6 +173,7 @@ workflows:
     scripts:
       - *install_shorebird
       - *fetch_dependencies
+      - *verify_android_signing
       - *verify_flutter
       - name: Create Shorebird Android patch
         script: |

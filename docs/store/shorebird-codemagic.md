@@ -64,6 +64,19 @@ blurly_upload_keystore
 Codemagic will expose the keystore as `CM_KEYSTORE_PATH`,
 `CM_KEYSTORE_PASSWORD`, `CM_KEY_ALIAS`, and `CM_KEY_PASSWORD`.
 
+If Codemagic fails with `Cannot recover key`, the keystore file and alias were
+found, but the key password is wrong. Edit the `blurly_upload_keystore` signing
+identity in Codemagic and confirm:
+
+- Keystore password: the store password used when creating the `.jks`.
+- Key alias: `blurly`.
+- Key password: the key password for the `blurly` alias. If you pressed Enter
+  when `keytool` asked for the key password, this is the same as the keystore
+  password.
+
+Do not put these values in a normal environment group; the YAML workflow reads
+them from the Android code signing identity.
+
 References:
 
 - Codemagic Google Play publishing:
