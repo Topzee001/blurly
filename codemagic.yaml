@@ -35,36 +35,6 @@ definitions:
         flutter analyze
         flutter test
 
-    - &patch_receive_sharing_intent
-      name: Patch receive_sharing_intent Android Gradle
-      script: |
-        ruby -rjson -ruri - <<'RUBY'
-          package_config = JSON.parse(File.read(".dart_tool/package_config.json"))
-          package = package_config.fetch("packages").find do |entry|
-            entry["name"] == "receive_sharing_intent"
-          end
-          abort("receive_sharing_intent not found in package_config.json") unless package
-
-          plugin_dir = URI(package.fetch("rootUri")).path
-          gradle_file = File.join(plugin_dir, "android", "build.gradle")
-          contents = File.read(gradle_file)
-
-          unless contents.include?('id "org.jetbrains.kotlin.android"')
-            contents = contents.sub(
-              /plugins\s*\{\s*\n/,
-              "plugins {\n    id \"org.jetbrains.kotlin.android\"\n",
-            )
-          end
-
-          contents = contents.gsub(
-            /^\s*compileSdkVersion.*$/,
-            "    compileSdkVersion 36",
-          )
-
-          File.write(gradle_file, contents)
-          puts "Patched #{gradle_file}"
-        RUBY
-
 workflows:
   android-shorebird-build-aab:
     name: Android Shorebird Build AAB
@@ -81,7 +51,6 @@ workflows:
     scripts:
       - *install_shorebird
       - *fetch_dependencies
-      - *patch_receive_sharing_intent
       - *verify_flutter
       - name: Create Shorebird Android release
         script: |
@@ -121,7 +90,6 @@ workflows:
     scripts:
       - *install_shorebird
       - *fetch_dependencies
-      - *patch_receive_sharing_intent
       - *verify_flutter
       - name: Create Shorebird Android release
         script: |
@@ -162,7 +130,6 @@ workflows:
     scripts:
       - *install_shorebird
       - *fetch_dependencies
-      - *patch_receive_sharing_intent
       - *verify_flutter
       - name: Create Shorebird Android patch
         script: |

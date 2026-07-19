@@ -172,6 +172,10 @@ Good first contribution areas:
 Android namespace/JVM-target patch so it builds with the current Android Gradle
 Plugin while preserving the requested package API.
 
+`receive_sharing_intent` is vendored under
+`third_party/receive_sharing_intent` with an Android Gradle patch so CI builds
+do not request the unavailable `android-37` SDK target.
+
 ## License
 
 Blurly is released under the MIT License. See [LICENSE](LICENSE).
