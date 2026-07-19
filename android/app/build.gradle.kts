@@ -28,7 +28,7 @@ val hasReleaseSigning =
 
 android {
     namespace = "com.topzee.blurly"
-    compileSdkVersion("android-37.0")
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -42,6 +42,11 @@ The workflow enables Flutter Swift Package Manager support before `flutter pub
 get` because `receive_sharing_intent` requires it on CI, even for Android-only
 release builds.
 
+The workflow also patches the Android Gradle file in the fresh
+`receive_sharing_intent` pub-cache copy. This keeps Codemagic aligned with the
+local Android build fix: apply the Kotlin Android plugin and compile the plugin
+against Android SDK 36.
+
 In Codemagic, create these environment groups:
 
 - `shorebird`
