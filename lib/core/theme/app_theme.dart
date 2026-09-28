@@ -32,6 +32,7 @@ class AppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: surface,
       visualDensity: VisualDensity.standard,
+      textTheme: _textTheme(brightness),
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
@@ -63,6 +64,33 @@ class AppTheme {
         trackHeight: 4,
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
         overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+      ),
+    );
+  }
+
+  static TextTheme _textTheme(Brightness brightness) {
+    final base = ThemeData(brightness: brightness).textTheme;
+    return base.copyWith(
+      titleLarge: base.titleLarge?.copyWith(
+        fontSize: 26,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0,
+      ),
+      titleMedium: base.titleMedium?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0,
+      ),
+      bodyLarge: base.bodyLarge?.copyWith(letterSpacing: 0),
+      bodyMedium: base.bodyMedium?.copyWith(letterSpacing: 0),
+      labelLarge: base.labelLarge?.copyWith(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
+      ),
+      labelMedium: base.labelMedium?.copyWith(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
       ),
     );
   }

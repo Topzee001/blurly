@@ -1,5 +1,6 @@
 import 'package:blurly/features/blur/domain/entities/blur_mode.dart';
 import 'package:blurly/features/blur/presentation/controllers/blur_providers.dart';
+import 'package:blurly/features/blur/presentation/pages/mask_refinement_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,9 +12,7 @@ class BlurControls extends ConsumerWidget {
     final hasImage = ref.watch(
       blurControllerProvider.select((state) => state.hasImage),
     );
-    if (!hasImage) {
-      return const SizedBox.shrink();
-    }
+    if (!hasImage) return const SizedBox.shrink();
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -27,7 +26,13 @@ class BlurControls extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [_ModeSelector(), SizedBox(height: 18), _BlurSlider()],
+          children: [
+            _ModeSelector(),
+            SizedBox(height: 18),
+            _BlurSlider(),
+            SizedBox(height: 10),
+            _RefineSubjectButton(),
+          ],
         ),
       ),
     );
@@ -49,17 +54,22 @@ class _ModeSelector extends ConsumerWidget {
         ButtonSegment(
           value: BlurMode.background,
           icon: Icon(Icons.center_focus_strong),
-          label: Text('Background'),
+          label: Text(
+            'Bg blur',
+            maxLines: 1,
+            softWrap: false,
+            style: TextStyle(fontSize: 14),
+          ),
         ),
         ButtonSegment(
           value: BlurMode.person,
           icon: Icon(Icons.person),
-          label: Text('Person'),
+          label: Text('Person', style: TextStyle(fontSize: 14)),
         ),
         ButtonSegment(
           value: BlurMode.bokeh,
           icon: Icon(Icons.lens_blur),
-          label: Text('Bokeh'),
+          label: Text('Bokeh', style: TextStyle(fontSize: 14)),
         ),
       ],
       selected: {mode},
@@ -120,5 +130,33 @@ class _BlurSlider extends ConsumerWidget {
     final percentage = (value.clamp(0, _maxBlurAmount) / _maxBlurAmount * 100)
         .round();
     return '$percentage%';
+  }
+}
+
+class _RefineSubjectButton extends ConsumerWidget {
+  const _RefineSubjectButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(blurControllerProvider);
+    return OutlinedButton.icon(
+      key: const ValueKey('openMaskRefinement'),
+      onPressed: state.isProcessing
+          ? null
+          : () async {
+              await Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (_) => MaskRefinementEditor(
+                    initialEdits: List.of(state.maskEdits),
+                    initialEdgeFeather: state.edgeFeather,
+                    initialMaskExpansion: state.maskExpansion,
+                  ),
+                ),
+              );
+            },
+      icon: const Icon(Icons.brush_outlined),
+      label: const Text('Refine subject'),
+    );
   }
 }

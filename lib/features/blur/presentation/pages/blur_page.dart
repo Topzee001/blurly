@@ -26,7 +26,7 @@ class BlurPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Blurly'),
+        title: const _BlurlyWordmark(),
         actions: const [
           _PrivacyPolicyAction(),
           _ThemeModeToggle(),
@@ -106,6 +106,31 @@ class BlurPage extends ConsumerWidget {
               : colorScheme.inverseSurface,
         ),
       );
+  }
+}
+
+class _BlurlyWordmark extends StatelessWidget {
+  const _BlurlyWordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    final titleStyle = Theme.of(context).textTheme.titleLarge;
+    final accent = Theme.of(context).colorScheme.primary;
+    return Semantics(
+      header: true,
+      label: 'Blurly',
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: 'Blur', style: titleStyle),
+            TextSpan(
+              text: 'ly',
+              style: titleStyle?.copyWith(color: accent),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

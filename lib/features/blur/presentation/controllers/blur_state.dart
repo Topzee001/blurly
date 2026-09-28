@@ -1,5 +1,6 @@
 import 'package:blurly/features/blur/domain/entities/blur_image.dart';
 import 'package:blurly/features/blur/domain/entities/blur_mode.dart';
+import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
 
 class BlurState {
   const BlurState({
@@ -12,6 +13,15 @@ class BlurState {
     this.successMessage,
     this.processingProgress = 0,
     this.blurMode = BlurMode.background,
+    this.isRefiningMask = false,
+    this.showMaskOverlay = false,
+    this.brushMode = MaskBrushMode.keep,
+    this.brushSize = 0.035,
+    this.edgeFeather = 4,
+    this.maskExpansion = 0,
+    this.maskEdits = const [],
+    this.undoneMaskEdits = const [],
+    this.pendingMaskPreviewStroke,
   });
 
   final BlurImage? selectedImage;
@@ -23,9 +33,20 @@ class BlurState {
   final String? successMessage;
   final double processingProgress;
   final BlurMode blurMode;
+  final bool isRefiningMask;
+  final bool showMaskOverlay;
+  final MaskBrushMode brushMode;
+  final double brushSize;
+  final int edgeFeather;
+  final int maskExpansion;
+  final List<MaskStroke> maskEdits;
+  final List<MaskStroke> undoneMaskEdits;
+  final MaskStroke? pendingMaskPreviewStroke;
 
   bool get hasImage => selectedImage != null;
   bool get canExport => processedImage != null && !isProcessing;
+  bool get canUndoMaskEdit => maskEdits.isNotEmpty;
+  bool get canRedoMaskEdit => undoneMaskEdits.isNotEmpty;
 
   BlurState copyWith({
     Object? selectedImage = _sentinel,
@@ -37,6 +58,15 @@ class BlurState {
     Object? successMessage = _sentinel,
     double? processingProgress,
     BlurMode? blurMode,
+    bool? isRefiningMask,
+    bool? showMaskOverlay,
+    MaskBrushMode? brushMode,
+    double? brushSize,
+    int? edgeFeather,
+    int? maskExpansion,
+    List<MaskStroke>? maskEdits,
+    List<MaskStroke>? undoneMaskEdits,
+    Object? pendingMaskPreviewStroke = _sentinel,
   }) {
     return BlurState(
       selectedImage: identical(selectedImage, _sentinel)
@@ -56,6 +86,17 @@ class BlurState {
           : successMessage as String?,
       processingProgress: processingProgress ?? this.processingProgress,
       blurMode: blurMode ?? this.blurMode,
+      isRefiningMask: isRefiningMask ?? this.isRefiningMask,
+      showMaskOverlay: showMaskOverlay ?? this.showMaskOverlay,
+      brushMode: brushMode ?? this.brushMode,
+      brushSize: brushSize ?? this.brushSize,
+      edgeFeather: edgeFeather ?? this.edgeFeather,
+      maskExpansion: maskExpansion ?? this.maskExpansion,
+      maskEdits: maskEdits ?? this.maskEdits,
+      undoneMaskEdits: undoneMaskEdits ?? this.undoneMaskEdits,
+      pendingMaskPreviewStroke: identical(pendingMaskPreviewStroke, _sentinel)
+          ? this.pendingMaskPreviewStroke
+          : pendingMaskPreviewStroke as MaskStroke?,
     );
   }
 }

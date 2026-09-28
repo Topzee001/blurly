@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:blurly/core/isolate/background_blur_processor.dart';
 import 'package:blurly/features/blur/domain/entities/blur_mode.dart';
+import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
@@ -48,6 +49,66 @@ void main() {
 
       expect(mask.getPixel(20, 23).r, greaterThan(180));
       expect(mask.getPixel(0, 0).r, lessThan(40));
+    });
+
+    test('replays keep and blur brush edits onto a mask', () {
+      final mask = img.Image(width: 40, height: 40);
+      mask.clear(img.ColorRgb8(0, 0, 0));
+
+      MaskUtils.applyEdits(mask, const [
+        MaskStroke(
+          mode: MaskBrushMode.keep,
+          points: [MaskPoint(0.25, 0.25)],
+          radius: 0.1,
+        ),
+        MaskStroke(
+          mode: MaskBrushMode.blur,
+          points: [MaskPoint(0.75, 0.75)],
+          radius: 0.1,
+        ),
+      ]);
+
+      expect(mask.getPixel(10, 10).r, 255);
+      expect(mask.getPixel(30, 30).r, 0);
+    });
+
+    test('a blur brush edit changes a protected area after compositing', () {
+      final source = img.Image(width: 41, height: 41);
+      for (var y = 0; y < source.height; y++) {
+        for (var x = 0; x < source.width; x++) {
+          final value = (x + y).isEven ? 0 : 255;
+          source.setPixelRgba(x, y, value, value, value, 255);
+        }
+      }
+      final mask = img.Image(width: 41, height: 41);
+      mask.clear(img.ColorRgb8(255, 255, 255));
+
+      MaskUtils.applyEdits(mask, const [
+        MaskStroke(
+          mode: MaskBrushMode.blur,
+          points: [MaskPoint(0.5, 0.5)],
+          radius: 0.12,
+        ),
+      ]);
+      final output = BackgroundBlurProcessor.compositeBackgroundBlur(
+        source: source,
+        foregroundMask: mask,
+        blurAmount: 12,
+      );
+
+      expect(output.getPixel(20, 20).r, isNot(source.getPixel(20, 20).r));
+      expect(output.getPixel(2, 2).r, source.getPixel(2, 2).r);
+    });
+
+    test('expands a foreground mask when requested', () {
+      final mask = img.Image(width: 31, height: 31);
+      mask.clear(img.ColorRgb8(0, 0, 0));
+      mask.setPixelRgba(15, 15, 255, 255, 255, 255);
+
+      final expanded = MaskUtils.expandMask(mask, 4);
+
+      expect(expanded.getPixel(15, 15).r, 255);
+      expect(expanded.getPixel(15, 11).r, 255);
     });
   });
 

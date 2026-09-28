@@ -76,13 +76,26 @@ class _BarAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final labelStyle = Theme.of(
+      context,
+    ).textTheme.labelLarge?.copyWith(fontSize: 13, fontWeight: FontWeight.w600);
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: FilledButton.tonalIcon(
+        child: FilledButton.tonal(
           onPressed: onPressed,
-          icon: Icon(icon, size: 20),
-          label: FittedBox(fit: BoxFit.scaleDown, child: Text(label)),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 62),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 21),
+              const SizedBox(height: 4),
+              Text(label, maxLines: 1, softWrap: false, style: labelStyle),
+            ],
+          ),
         ),
       ),
     );

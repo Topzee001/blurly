@@ -1,5 +1,7 @@
 import 'package:blurly/features/blur/domain/entities/blur_image.dart';
+import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
 import 'package:blurly/features/blur/presentation/controllers/blur_providers.dart';
+import 'package:blurly/features/blur/presentation/widgets/mask_refinement_canvas.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -77,11 +79,13 @@ class _PreviewImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: Theme.of(context).colorScheme.surfaceContainerLow,
-      child: Image.memory(
-        image.bytes,
-        fit: BoxFit.contain,
-        gaplessPlayback: true,
-        filterQuality: FilterQuality.medium,
+      child: MaskRefinementCanvas(
+        image: image,
+        showOverlay: false,
+        isEditable: false,
+        brushMode: MaskBrushMode.keep,
+        brushSize: 0.035,
+        onStroke: (_) {},
       ),
     );
   }
