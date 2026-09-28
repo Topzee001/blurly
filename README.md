@@ -29,6 +29,10 @@ Improving this is the main open-source contribution area.
 - Run heavy image work in an isolate.
 - Downscale very large images before processing.
 - Adjust blur intensity from 0% to 100%.
+- Refine the AI mask with Keep and Blur brushes.
+- Preview the final segmentation mask over the image.
+- Undo and redo brush edits.
+- Adjust edge feathering and mask expansion before compositing.
 - Toggle original/processed preview.
 - Save processed PNGs to the gallery.
 - Share processed PNGs.
@@ -49,6 +53,14 @@ Blurly currently has three modes:
 
 Bokeh is not a separate AI model. It is a visual style layered on top of the
 background blur result.
+
+## Mask Refinement
+
+Open **Refine subject** after selecting an image. Use **Keep** to protect a
+missed part of the subject or **Blur** to mark an area as background. The
+**Mask** tool optionally previews the final selection: teal areas stay sharp
+and the rest is blurred. Brush edits, feathering, and expansion are replayed
+in the background isolate and can be undone, redone, cancelled, or applied.
 
 ## What Needs Work
 
@@ -137,11 +149,12 @@ Blurly uses a small Clean Architecture slice:
 4. Resize a copy for TFLite inference.
 5. Run the bundled selfie segmentation model.
 6. Convert binary or multiclass output into a foreground mask.
-7. Feather mask edges.
-8. Fall back to a centered subject mask when the AI mask is unusable.
-9. Blur the background with the `image` package.
-10. Composite original foreground over blurred background.
-11. Return final PNG bytes to the UI.
+7. Fall back to a centered subject mask when the AI mask is unusable.
+8. Apply mask expansion/shrink and manual Keep/Blur brush edits.
+9. Feather mask edges and produce a mask-preview overlay.
+10. Blur the background with the `image` package.
+11. Composite original foreground over blurred background.
+12. Return final PNG and mask-overlay bytes to the UI.
 
 ## Open Source
 
@@ -162,7 +175,6 @@ Good first contribution areas:
 
 - Replace or supplement selfie segmentation with object/general segmentation.
 - Add depth estimation or saliency detection for non-person images.
-- Add manual mask brush refinement.
 - Improve mask edge cleanup and hair/object boundary handling.
 - Add real-device integration coverage for Android and iOS.
 

@@ -6,6 +6,7 @@ import 'package:blurly/features/blur/data/datasources/gallery_share_data_source.
 import 'package:blurly/features/blur/data/datasources/image_picker_data_source.dart';
 import 'package:blurly/features/blur/data/services/selfie_segmentation_model_loader.dart';
 import 'package:blurly/features/blur/domain/entities/blur_image.dart';
+import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
 import 'package:blurly/features/blur/domain/entities/processing_options.dart';
 import 'package:blurly/features/blur/domain/repositories/blur_repository.dart';
 import 'package:path/path.dart' as p;
@@ -54,12 +55,19 @@ class BlurRepositoryImpl implements BlurRepository {
         blurAmount: options.blurAmount,
         mode: options.mode,
         edgeFeather: options.edgeFeather,
+        maskExpansion: options.maskExpansion,
+        maskEdits: options.maskEdits,
       ),
     );
 
     final processed = BlurImage(
-      bytes: Uint8List.fromList(resultBytes),
+      bytes: Uint8List.fromList(
+        resultBytes.imageBytes.materialize().asUint8List(),
+      ),
       name: _processedName(image.name, options),
+      maskOverlayBytes: Uint8List.fromList(
+        resultBytes.maskOverlayBytes.materialize().asUint8List(),
+      ),
     );
     _cache[cacheKey] = processed;
     if (_cache.length > 12) {
@@ -87,7 +95,18 @@ class BlurRepositoryImpl implements BlurRepository {
 
   String _cacheKey(Uint8List bytes, ProcessingOptions options) {
     return '${_fnv1a(bytes)}:${options.blurAmount.round()}:'
-        '${options.mode.name}:${options.edgeFeather}';
+        '${options.mode.name}:${options.edgeFeather}:${options.maskExpansion}:'
+        '${_editsCacheKey(options.maskEdits)}';
+  }
+
+  String _editsCacheKey(List<MaskStroke> edits) {
+    return edits
+        .map(
+          (stroke) =>
+              '${stroke.mode.name}:${stroke.radius.toStringAsFixed(4)}:'
+              '${stroke.points.map((point) => '${point.x.toStringAsFixed(3)},${point.y.toStringAsFixed(3)}').join(';')}',
+        )
+        .join('|');
   }
 
   int _fnv1a(Uint8List bytes) {

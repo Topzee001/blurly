@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:blurly/features/blur/domain/entities/blur_mode.dart';
+import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
@@ -14,6 +15,8 @@ class BlurProcessingRequest {
     required this.blurAmount,
     required this.mode,
     required this.edgeFeather,
+    required this.maskExpansion,
+    required this.maskEdits,
   });
 
   final TransferableTypedData imageBytes;
@@ -21,12 +24,24 @@ class BlurProcessingRequest {
   final double blurAmount;
   final BlurMode mode;
   final int edgeFeather;
+  final int maskExpansion;
+  final List<MaskStroke> maskEdits;
+}
+
+class BlurProcessingOutput {
+  const BlurProcessingOutput({
+    required this.imageBytes,
+    required this.maskOverlayBytes,
+  });
+
+  final TransferableTypedData imageBytes;
+  final TransferableTypedData maskOverlayBytes;
 }
 
 class ImageProcessingIsolate {
   const ImageProcessingIsolate();
 
-  Future<Uint8List> process(BlurProcessingRequest request) {
+  Future<BlurProcessingOutput> process(BlurProcessingRequest request) {
     return Isolate.run(() => BackgroundBlurProcessor.process(request));
   }
 }
@@ -37,7 +52,7 @@ class BackgroundBlurProcessor {
   static const int maxImageDimension = 3000;
   static const double foregroundThreshold = 0.52;
 
-  static Uint8List process(BlurProcessingRequest request) {
+  static BlurProcessingOutput process(BlurProcessingRequest request) {
     final bytes = request.imageBytes.materialize().asUint8List();
     final modelBytes = request.modelBytes.materialize().asUint8List();
     final decoded = img.decodeImage(bytes);
@@ -50,16 +65,19 @@ class BackgroundBlurProcessor {
       maxDimension: maxImageDimension,
     );
     final probabilities = _runSelfieSegmentation(source, modelBytes);
-    final mask = foregroundMaskForMode(
+    var mask = foregroundMaskForMode(
       probabilities: probabilities,
       width: _lastMaskWidth,
       height: _lastMaskHeight,
       threshold: foregroundThreshold,
-      featherRadius: request.edgeFeather,
+      featherRadius: 0,
       targetWidth: source.width,
       targetHeight: source.height,
       mode: request.mode,
     );
+    mask = MaskUtils.expandMask(mask, request.maskExpansion);
+    MaskUtils.applyEdits(mask, request.maskEdits);
+    mask = MaskUtils.featherMask(mask, request.edgeFeather);
 
     final composited = compositeBackgroundBlur(
       source: source,
@@ -68,7 +86,15 @@ class BackgroundBlurProcessor {
       mode: request.mode,
     );
 
-    return Uint8List.fromList(img.encodePng(composited, level: 6));
+    final overlay = MaskUtils.maskOverlay(mask);
+    return BlurProcessingOutput(
+      imageBytes: TransferableTypedData.fromList([
+        Uint8List.fromList(img.encodePng(composited, level: 6)),
+      ]),
+      maskOverlayBytes: TransferableTypedData.fromList([
+        Uint8List.fromList(img.encodePng(overlay, level: 4)),
+      ]),
+    );
   }
 
   static int _lastMaskWidth = 256;
@@ -491,13 +517,169 @@ class MaskUtils {
       interpolation: img.Interpolation.linear,
     );
 
+    return featherMask(fullMask, featherRadius);
+  }
+
+  static img.Image featherMask(img.Image mask, int featherRadius) {
     if (featherRadius <= 0) {
-      return fullMask;
+      return mask;
     }
-    return img.gaussianBlur(
-      fullMask,
-      radius: featherRadius.clamp(1, 8).toInt(),
+    return img.gaussianBlur(mask, radius: featherRadius.clamp(1, 12).toInt());
+  }
+
+  /// Grows or shrinks a binary mask before feathering with a separable,
+  /// linear-time max/min filter. This remains practical for large photos.
+  static img.Image expandMask(img.Image mask, int amount) {
+    final clamped = amount.clamp(-12, 12).toInt();
+    if (clamped == 0) {
+      return mask;
+    }
+    final radius = clamped.abs();
+    final grow = clamped > 0;
+    final horizontal = Uint8List(mask.width * mask.height);
+    final queueValues = List<int>.filled(
+      math.max(mask.width, mask.height) + 1,
+      0,
     );
+    final queuePositions = List<int>.filled(queueValues.length, 0);
+
+    for (var y = 0; y < mask.height; y++) {
+      var head = 0;
+      var tail = 0;
+      for (var x = -radius; x < mask.width; x++) {
+        final entering = x + radius;
+        if (entering < mask.width) {
+          final value = mask.getPixel(entering, y).r.round();
+          while (tail > head &&
+              _isMoreExtreme(value, queueValues[tail - 1], grow)) {
+            tail--;
+          }
+          queueValues[tail] = value;
+          queuePositions[tail++] = entering;
+        }
+        final windowStart = x - radius;
+        while (tail > head && queuePositions[head] < windowStart) {
+          head++;
+        }
+        if (x >= 0) {
+          horizontal[y * mask.width + x] = queueValues[head];
+        }
+      }
+    }
+
+    final output = img.Image(width: mask.width, height: mask.height);
+    for (var x = 0; x < mask.width; x++) {
+      var head = 0;
+      var tail = 0;
+      for (var y = -radius; y < mask.height; y++) {
+        final entering = y + radius;
+        if (entering < mask.height) {
+          final value = horizontal[entering * mask.width + x];
+          while (tail > head &&
+              _isMoreExtreme(value, queueValues[tail - 1], grow)) {
+            tail--;
+          }
+          queueValues[tail] = value;
+          queuePositions[tail++] = entering;
+        }
+        final windowStart = y - radius;
+        while (tail > head && queuePositions[head] < windowStart) {
+          head++;
+        }
+        if (y >= 0) {
+          final filtered = queueValues[head];
+          final value = filtered >= 128 ? 255 : 0;
+          output.setPixelRgba(x, y, value, value, value, 255);
+        }
+      }
+    }
+    return output;
+  }
+
+  static bool _isMoreExtreme(int candidate, int current, bool grow) {
+    return grow ? candidate >= current : candidate <= current;
+  }
+
+  static void applyEdits(img.Image mask, List<MaskStroke> edits) {
+    for (final stroke in edits) {
+      if (stroke.points.isEmpty) {
+        continue;
+      }
+      final value = stroke.mode == MaskBrushMode.keep ? 255 : 0;
+      final radius =
+          (stroke.radius.clamp(0.006, 0.12) * math.min(mask.width, mask.height))
+              .round()
+              .clamp(2, 220)
+              .toInt();
+      for (var index = 0; index < stroke.points.length; index++) {
+        final point = stroke.points[index];
+        final next = index + 1 < stroke.points.length
+            ? stroke.points[index + 1]
+            : point;
+        _paintLine(mask, point, next, radius, value);
+      }
+    }
+  }
+
+  static void _paintLine(
+    img.Image mask,
+    MaskPoint start,
+    MaskPoint end,
+    int radius,
+    int value,
+  ) {
+    final startX = (start.x.clamp(0, 1) * (mask.width - 1)).round();
+    final startY = (start.y.clamp(0, 1) * (mask.height - 1)).round();
+    final endX = (end.x.clamp(0, 1) * (mask.width - 1)).round();
+    final endY = (end.y.clamp(0, 1) * (mask.height - 1)).round();
+    final distance = math.sqrt(
+      math.pow(endX - startX, 2) + math.pow(endY - startY, 2),
+    );
+    final steps = math.max(1, (distance / math.max(1, radius * 0.55)).ceil());
+    for (var step = 0; step <= steps; step++) {
+      final t = step / steps;
+      _paintCircle(
+        mask,
+        (startX + (endX - startX) * t).round(),
+        (startY + (endY - startY) * t).round(),
+        radius,
+        value,
+      );
+    }
+  }
+
+  static void _paintCircle(
+    img.Image mask,
+    int centerX,
+    int centerY,
+    int radius,
+    int value,
+  ) {
+    final radiusSquared = radius * radius;
+    final minY = math.max(0, centerY - radius);
+    final maxY = math.min(mask.height - 1, centerY + radius);
+    final minX = math.max(0, centerX - radius);
+    final maxX = math.min(mask.width - 1, centerX + radius);
+    for (var y = minY; y <= maxY; y++) {
+      final dy = y - centerY;
+      for (var x = minX; x <= maxX; x++) {
+        final dx = x - centerX;
+        if (dx * dx + dy * dy <= radiusSquared) {
+          mask.setPixelRgba(x, y, value, value, value, 255);
+        }
+      }
+    }
+  }
+
+  static img.Image maskOverlay(img.Image mask) {
+    final overlay = img.Image(width: mask.width, height: mask.height);
+    for (var y = 0; y < mask.height; y++) {
+      for (var x = 0; x < mask.width; x++) {
+        final alpha = (mask.getPixel(x, y).r * 0.45).round();
+        overlay.setPixelRgba(x, y, 55, 210, 170, alpha);
+      }
+    }
+    return overlay;
   }
 
   static double coverage(Uint8List binaryMask) {

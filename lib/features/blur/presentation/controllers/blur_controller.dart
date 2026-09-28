@@ -5,6 +5,7 @@ import 'package:blurly/core/utils/debouncer.dart';
 import 'package:blurly/features/blur/domain/entities/blur_image.dart';
 import 'package:blurly/features/blur/domain/entities/blur_mode.dart';
 import 'package:blurly/features/blur/domain/entities/processing_options.dart';
+import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
 import 'package:blurly/features/blur/domain/usecases/pick_image.dart';
 import 'package:blurly/features/blur/domain/usecases/process_blur_image.dart';
 import 'package:blurly/features/blur/domain/usecases/save_blurred_image.dart';
@@ -60,6 +61,13 @@ class BlurController extends StateNotifier<BlurState> {
         showOriginal: false,
         errorMessage: null,
         successMessage: null,
+        isRefiningMask: false,
+        showMaskOverlay: false,
+        maskEdits: const [],
+        undoneMaskEdits: const [],
+        pendingMaskPreviewStroke: null,
+        edgeFeather: 4,
+        maskExpansion: 0,
       );
       await processSelectedImage();
     } catch (error) {
@@ -76,6 +84,13 @@ class BlurController extends StateNotifier<BlurState> {
         showOriginal: false,
         errorMessage: null,
         successMessage: null,
+        isRefiningMask: false,
+        showMaskOverlay: false,
+        maskEdits: const [],
+        undoneMaskEdits: const [],
+        pendingMaskPreviewStroke: null,
+        edgeFeather: 4,
+        maskExpansion: 0,
       );
 
       await processSelectedImage();
@@ -106,6 +121,114 @@ class BlurController extends StateNotifier<BlurState> {
     }
   }
 
+  void setMaskRefinementEnabled(bool enabled) {
+    state = state.copyWith(isRefiningMask: enabled);
+  }
+
+  void closeMaskRefinement() {
+    state = state.copyWith(isRefiningMask: false, showMaskOverlay: false);
+  }
+
+  void discardMaskRefinement({
+    required List<MaskStroke> maskEdits,
+    required int edgeFeather,
+    required int maskExpansion,
+  }) {
+    state = state.copyWith(
+      isRefiningMask: false,
+      showMaskOverlay: false,
+      maskEdits: maskEdits,
+      undoneMaskEdits: const [],
+      pendingMaskPreviewStroke: null,
+      edgeFeather: edgeFeather,
+      maskExpansion: maskExpansion,
+    );
+    _scheduleMaskProcessing();
+  }
+
+  void setMaskOverlayVisible(bool visible) {
+    state = state.copyWith(showMaskOverlay: visible);
+  }
+
+  void setBrushMode(MaskBrushMode mode) {
+    state = state.copyWith(brushMode: mode);
+  }
+
+  void updateBrushSize(double value) {
+    state = state.copyWith(brushSize: value.clamp(0.012, 0.08).toDouble());
+  }
+
+  void updateEdgeFeather(double value) {
+    state = state.copyWith(
+      edgeFeather: value.round().clamp(0, 12).toInt(),
+      errorMessage: null,
+      successMessage: null,
+    );
+    _scheduleMaskProcessing();
+  }
+
+  void updateMaskExpansion(double value) {
+    state = state.copyWith(
+      maskExpansion: value.round().clamp(-12, 12).toInt(),
+      errorMessage: null,
+      successMessage: null,
+    );
+    _scheduleMaskProcessing();
+  }
+
+  void addMaskStroke(List<MaskPoint> points) {
+    if (points.isEmpty || state.selectedImage == null) {
+      return;
+    }
+    final stroke = MaskStroke(
+      mode: state.brushMode,
+      points: List.unmodifiable(points),
+      radius: state.brushSize,
+    );
+    state = state.copyWith(
+      maskEdits: [...state.maskEdits, stroke],
+      undoneMaskEdits: const [],
+      pendingMaskPreviewStroke: stroke,
+      errorMessage: null,
+      successMessage: null,
+    );
+    unawaited(processSelectedImage());
+  }
+
+  void undoMaskEdit() {
+    if (!state.canUndoMaskEdit) {
+      return;
+    }
+    final edits = [...state.maskEdits];
+    final removed = edits.removeLast();
+    state = state.copyWith(
+      maskEdits: edits,
+      undoneMaskEdits: [...state.undoneMaskEdits, removed],
+      pendingMaskPreviewStroke: null,
+    );
+    unawaited(processSelectedImage());
+  }
+
+  void redoMaskEdit() {
+    if (!state.canRedoMaskEdit) {
+      return;
+    }
+    final undone = [...state.undoneMaskEdits];
+    final restored = undone.removeLast();
+    state = state.copyWith(
+      maskEdits: [...state.maskEdits, restored],
+      undoneMaskEdits: undone,
+      pendingMaskPreviewStroke: null,
+    );
+    unawaited(processSelectedImage());
+  }
+
+  void _scheduleMaskProcessing() {
+    if (state.selectedImage != null) {
+      _sliderDebouncer(processSelectedImage);
+    }
+  }
+
   void toggleOriginal() {
     if (state.processedImage == null) {
       return;
@@ -129,10 +252,14 @@ class BlurController extends StateNotifier<BlurState> {
     );
 
     try {
-      final processed = await _processBlurImage(
-        image,
-        ProcessingOptions(blurAmount: state.blurAmount, mode: state.blurMode),
+      final options = ProcessingOptions(
+        blurAmount: state.blurAmount,
+        mode: state.blurMode,
+        edgeFeather: state.edgeFeather,
+        maskExpansion: state.maskExpansion,
+        maskEdits: state.maskEdits,
       );
+      final processed = await _processBlurImage(image, options);
       if (run != _processingRun) {
         return;
       }
@@ -142,6 +269,7 @@ class BlurController extends StateNotifier<BlurState> {
         isProcessing: false,
         showOriginal: false,
         processingProgress: 1,
+        pendingMaskPreviewStroke: null,
       );
     } catch (error) {
       if (run != _processingRun) {
@@ -152,6 +280,7 @@ class BlurController extends StateNotifier<BlurState> {
         isProcessing: false,
         processingProgress: 0,
         errorMessage: _friendlyError(error),
+        pendingMaskPreviewStroke: null,
       );
     }
   }

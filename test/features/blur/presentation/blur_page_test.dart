@@ -81,6 +81,36 @@ void main() {
     expect(find.text('Original'), findsOneWidget);
   });
 
+  testWidgets('mask refinement opens a focused editor', (tester) async {
+    await pumpBlurPage(tester);
+    await tester.tap(find.byKey(const ValueKey('pickButton')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('openMaskRefinement')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('maskRefinementEditor')), findsOneWidget);
+    expect(find.byKey(const ValueKey('maskBrushMode')), findsOneWidget);
+    expect(find.byKey(const ValueKey('undoMaskEdit')), findsOneWidget);
+    expect(find.byKey(const ValueKey('maskPreviewButton')), findsOneWidget);
+  });
+
+  testWidgets('mask refinement fits a compact phone viewport', (tester) async {
+    tester.view.physicalSize = const Size(390, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await pumpBlurPage(tester);
+    await tester.tap(find.byKey(const ValueKey('pickButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('openMaskRefinement')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('finishMaskRefinement')), findsOneWidget);
+  });
+
   testWidgets('theme toggle switches between dark and light icons', (
     tester,
   ) async {
