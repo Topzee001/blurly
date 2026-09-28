@@ -25,6 +25,7 @@ enum _MaskTool { brush, feather, expand }
 
 class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
   _MaskTool _selectedTool = _MaskTool.brush;
+  bool _isLeaving = false;
 
   @override
   void initState() {
@@ -49,86 +50,94 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
       ),
     );
 
-    return Theme(
-      data: editorTheme,
-      child: Scaffold(
-        key: const ValueKey('maskRefinementEditor'),
-        backgroundColor: const Color(0xFF0F1214),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _EditorHeader(
-                canUndo: state.canUndoMaskEdit && !state.isProcessing,
-                canRedo: state.canRedoMaskEdit && !state.isProcessing,
-                canFinish: !state.isProcessing,
-                onCancel: _cancel,
-                onUndo: controller.undoMaskEdit,
-                onRedo: controller.redoMaskEdit,
-                onDone: _done,
-              ),
-              Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ColoredBox(
-                      color: Colors.black,
-                      child: editorImage == null
-                          ? const SizedBox.shrink()
-                          : MaskRefinementCanvas(
-                              image: editorImage,
-                              originalImage: selected,
-                              maskOverlayBytes: editorImage.maskOverlayBytes,
-                              showOverlay: state.showMaskOverlay,
-                              isEditable: !state.isProcessing,
-                              brushMode: state.brushMode,
-                              brushSize: state.brushSize,
-                              pendingPreviewStroke:
-                                  state.pendingMaskPreviewStroke,
-                              previewBlurSigma: 5 + state.blurAmount * 0.35,
-                              onStroke: controller.addMaskStroke,
-                            ),
-                    ),
-                    if (state.showMaskOverlay)
-                      const Positioned(
-                        top: 14,
-                        left: 16,
-                        child: _MaskPreviewHint(),
-                      ),
-                    if (state.isProcessing)
-                      const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 12),
-                            Text(
-                              'Updating blur',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
+    return PopScope(
+      canPop: _isLeaving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_isLeaving) {
+          _cancel();
+        }
+      },
+      child: Theme(
+        data: editorTheme,
+        child: Scaffold(
+          key: const ValueKey('maskRefinementEditor'),
+          backgroundColor: const Color(0xFF0F1214),
+          body: SafeArea(
+            child: Column(
+              children: [
+                _EditorHeader(
+                  canUndo: state.canUndoMaskEdit && !state.isProcessing,
+                  canRedo: state.canRedoMaskEdit && !state.isProcessing,
+                  canFinish: !state.isProcessing,
+                  onCancel: _cancel,
+                  onUndo: controller.undoMaskEdit,
+                  onRedo: controller.redoMaskEdit,
+                  onDone: _done,
                 ),
-              ),
-              _EditorToolDock(
-                selectedTool: _selectedTool,
-                brushMode: state.brushMode,
-                showOverlay: state.showMaskOverlay,
-                brushSize: state.brushSize,
-                edgeFeather: state.edgeFeather,
-                maskExpansion: state.maskExpansion,
-                isProcessing: state.isProcessing,
-                onSelectTool: _selectTool,
-                onSelectBrushMode: controller.setBrushMode,
-                onToggleOverlay: () =>
-                    controller.setMaskOverlayVisible(!state.showMaskOverlay),
-                onBrushSize: controller.updateBrushSize,
-                onEdgeFeather: controller.updateEdgeFeather,
-                onMaskExpansion: controller.updateMaskExpansion,
-                accent: editorTheme.colorScheme.primary,
-              ),
-            ],
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ColoredBox(
+                        color: Colors.black,
+                        child: editorImage == null
+                            ? const SizedBox.shrink()
+                            : MaskRefinementCanvas(
+                                image: editorImage,
+                                originalImage: selected,
+                                maskOverlayBytes: editorImage.maskOverlayBytes,
+                                showOverlay: state.showMaskOverlay,
+                                isEditable: !state.isProcessing,
+                                brushMode: state.brushMode,
+                                brushSize: state.brushSize,
+                                pendingPreviewStroke:
+                                    state.pendingMaskPreviewStroke,
+                                previewBlurSigma: 5 + state.blurAmount * 0.35,
+                                onStroke: controller.addMaskStroke,
+                              ),
+                      ),
+                      if (state.showMaskOverlay)
+                        const Positioned(
+                          top: 14,
+                          left: 16,
+                          child: _MaskPreviewHint(),
+                        ),
+                      if (state.isProcessing)
+                        const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(height: 12),
+                              Text(
+                                'Updating blur',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                _EditorToolDock(
+                  selectedTool: _selectedTool,
+                  brushMode: state.brushMode,
+                  showOverlay: state.showMaskOverlay,
+                  brushSize: state.brushSize,
+                  edgeFeather: state.edgeFeather,
+                  maskExpansion: state.maskExpansion,
+                  isProcessing: state.isProcessing,
+                  onSelectTool: _selectTool,
+                  onSelectBrushMode: controller.setBrushMode,
+                  onToggleOverlay: () =>
+                      controller.setMaskOverlayVisible(!state.showMaskOverlay),
+                  onBrushSize: controller.updateBrushSize,
+                  onEdgeFeather: controller.updateEdgeFeather,
+                  onMaskExpansion: controller.updateMaskExpansion,
+                  accent: editorTheme.colorScheme.primary,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -141,7 +150,7 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
 
   void _done() {
     ref.read(blurControllerProvider.notifier).closeMaskRefinement();
-    Navigator.of(context).pop();
+    _leaveEditor();
   }
 
   void _cancel() {
@@ -152,7 +161,19 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
           edgeFeather: widget.initialEdgeFeather,
           maskExpansion: widget.initialMaskExpansion,
         );
-    Navigator.of(context).pop();
+    _leaveEditor();
+  }
+
+  void _leaveEditor() {
+    if (_isLeaving) {
+      return;
+    }
+    setState(() => _isLeaving = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    });
   }
 }
 

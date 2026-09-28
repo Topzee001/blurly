@@ -134,6 +134,8 @@ class BlurController extends StateNotifier<BlurState> {
     required int edgeFeather,
     required int maskExpansion,
   }) {
+    // Ignore any result created from edits the user has just discarded.
+    ++_processingRun;
     state = state.copyWith(
       isRefiningMask: false,
       showMaskOverlay: false,

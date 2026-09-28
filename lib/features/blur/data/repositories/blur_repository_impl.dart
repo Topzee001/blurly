@@ -103,8 +103,8 @@ class BlurRepositoryImpl implements BlurRepository {
     return edits
         .map(
           (stroke) =>
-              '${stroke.mode.name}:${stroke.radius.toStringAsFixed(4)}:'
-              '${stroke.points.map((point) => '${point.x.toStringAsFixed(3)},${point.y.toStringAsFixed(3)}').join(';')}',
+              '${stroke.mode.name}:${stroke.radius}:'
+              '${stroke.points.map((point) => '${point.x},${point.y}').join(';')}',
         )
         .join('|');
   }

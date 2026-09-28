@@ -111,6 +111,20 @@ void main() {
     expect(find.byKey(const ValueKey('finishMaskRefinement')), findsOneWidget);
   });
 
+  testWidgets('system back cancels mask refinement', (tester) async {
+    await pumpBlurPage(tester);
+    await tester.tap(find.byKey(const ValueKey('pickButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('openMaskRefinement')));
+    await tester.pumpAndSettle();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('maskRefinementEditor')), findsNothing);
+    expect(find.byKey(const ValueKey('openMaskRefinement')), findsOneWidget);
+  });
+
   testWidgets('theme toggle switches between dark and light icons', (
     tester,
   ) async {

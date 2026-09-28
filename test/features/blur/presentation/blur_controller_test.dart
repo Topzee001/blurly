@@ -121,4 +121,34 @@ void main() {
       expect(controller.state.pendingMaskPreviewStroke, isNull);
     },
   );
+
+  test(
+    'ignores an in-flight result after mask refinement is discarded',
+    () async {
+      final repository = FakeBlurRepository();
+      final controller = buildController(repository);
+      await controller.pickImage();
+
+      final staleUpdate = Completer<BlurImage>();
+      repository.processCompleter = staleUpdate;
+      controller.addMaskStroke(const [MaskPoint(0.5, 0.5)]);
+
+      final restoredUpdate = Completer<BlurImage>();
+      repository.processCompleter = restoredUpdate;
+      controller.discardMaskRefinement(
+        maskEdits: const [],
+        edgeFeather: 4,
+        maskExpansion: 0,
+      );
+
+      staleUpdate.complete(sampleBlurImage('discarded-edit.png'));
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.state.processedImage?.name, 'processed_18.png');
+
+      restoredUpdate.complete(sampleBlurImage('restored.png'));
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.state.processedImage?.name, 'restored.png');
+      expect(controller.state.maskEdits, isEmpty);
+    },
+  );
 }
