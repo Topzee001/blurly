@@ -14,7 +14,7 @@ class MaskRefinementCanvas extends StatefulWidget {
     required this.brushSize,
     required this.onStroke,
     this.originalImage,
-    this.pendingPreviewStroke,
+    this.pendingPreviewStrokes = const [],
     this.previewBlurSigma = 8,
     this.maskOverlayBytes,
   });
@@ -26,11 +26,11 @@ class MaskRefinementCanvas extends StatefulWidget {
   final double brushSize;
   final ValueChanged<List<MaskPoint>> onStroke;
 
-  /// The untouched photo is revealed while a Keep sharp stroke is processing.
+  /// The untouched photo is revealed within draft Keep sharp strokes.
   final BlurImage? originalImage;
 
-  /// A short-lived, on-canvas preview of the most recently painted edit.
-  final MaskStroke? pendingPreviewStroke;
+  /// On-canvas previews of every edit waiting for the user to apply it.
+  final List<MaskStroke> pendingPreviewStrokes;
   final double previewBlurSigma;
   final Uint8List? maskOverlayBytes;
 
@@ -115,7 +115,7 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
                 filterQuality: FilterQuality.medium,
               ),
             ),
-            if (widget.pendingPreviewStroke case final stroke?)
+            for (final stroke in widget.pendingPreviewStrokes)
               Positioned.fromRect(
                 rect: rect,
                 child: IgnorePointer(

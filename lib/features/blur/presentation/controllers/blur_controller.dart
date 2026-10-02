@@ -65,7 +65,9 @@ class BlurController extends StateNotifier<BlurState> {
         showMaskOverlay: false,
         maskEdits: const [],
         undoneMaskEdits: const [],
-        pendingMaskPreviewStroke: null,
+        pendingMaskPreviewStrokes: const [],
+        appliedMaskEditCount: 0,
+        hasUnappliedMaskChanges: false,
         edgeFeather: 4,
         maskExpansion: 0,
       );
@@ -88,7 +90,9 @@ class BlurController extends StateNotifier<BlurState> {
         showMaskOverlay: false,
         maskEdits: const [],
         undoneMaskEdits: const [],
-        pendingMaskPreviewStroke: null,
+        pendingMaskPreviewStrokes: const [],
+        appliedMaskEditCount: 0,
+        hasUnappliedMaskChanges: false,
         edgeFeather: 4,
         maskExpansion: 0,
       );
@@ -122,11 +126,25 @@ class BlurController extends StateNotifier<BlurState> {
   }
 
   void setMaskRefinementEnabled(bool enabled) {
-    state = state.copyWith(isRefiningMask: enabled);
+    final appliedMaskEditCount = enabled
+        ? state.maskEdits.length
+        : state.appliedMaskEditCount;
+    state = state.copyWith(
+      isRefiningMask: enabled,
+      appliedMaskEditCount: appliedMaskEditCount,
+      pendingMaskPreviewStrokes: const [],
+    );
   }
 
   void closeMaskRefinement() {
     state = state.copyWith(isRefiningMask: false, showMaskOverlay: false);
+  }
+
+  Future<void> applyMaskRefinement() async {
+    if (!state.hasUnappliedMaskChanges || state.selectedImage == null) {
+      return;
+    }
+    await processSelectedImage(applyMaskChanges: true);
   }
 
   void discardMaskRefinement({
@@ -136,16 +154,21 @@ class BlurController extends StateNotifier<BlurState> {
   }) {
     // Ignore any result created from edits the user has just discarded.
     ++_processingRun;
+    _stopProgress();
     state = state.copyWith(
       isRefiningMask: false,
       showMaskOverlay: false,
+      isProcessing: false,
+      processingProgress: 0,
+      isProcessingFinalizing: false,
       maskEdits: maskEdits,
       undoneMaskEdits: const [],
-      pendingMaskPreviewStroke: null,
+      pendingMaskPreviewStrokes: const [],
+      appliedMaskEditCount: maskEdits.length,
+      hasUnappliedMaskChanges: false,
       edgeFeather: edgeFeather,
       maskExpansion: maskExpansion,
     );
-    _scheduleMaskProcessing();
   }
 
   void setMaskOverlayVisible(bool visible) {
@@ -165,8 +188,8 @@ class BlurController extends StateNotifier<BlurState> {
       edgeFeather: value.round().clamp(0, 12).toInt(),
       errorMessage: null,
       successMessage: null,
+      hasUnappliedMaskChanges: true,
     );
-    _scheduleMaskProcessing();
   }
 
   void updateMaskExpansion(double value) {
@@ -174,8 +197,8 @@ class BlurController extends StateNotifier<BlurState> {
       maskExpansion: value.round().clamp(-12, 12).toInt(),
       errorMessage: null,
       successMessage: null,
+      hasUnappliedMaskChanges: true,
     );
-    _scheduleMaskProcessing();
   }
 
   void addMaskStroke(List<MaskPoint> points) {
@@ -190,11 +213,14 @@ class BlurController extends StateNotifier<BlurState> {
     state = state.copyWith(
       maskEdits: [...state.maskEdits, stroke],
       undoneMaskEdits: const [],
-      pendingMaskPreviewStroke: stroke,
+      pendingMaskPreviewStrokes: _pendingPreviewStrokes([
+        ...state.maskEdits,
+        stroke,
+      ]),
       errorMessage: null,
       successMessage: null,
+      hasUnappliedMaskChanges: true,
     );
-    unawaited(processSelectedImage());
   }
 
   void undoMaskEdit() {
@@ -206,9 +232,9 @@ class BlurController extends StateNotifier<BlurState> {
     state = state.copyWith(
       maskEdits: edits,
       undoneMaskEdits: [...state.undoneMaskEdits, removed],
-      pendingMaskPreviewStroke: null,
+      pendingMaskPreviewStrokes: _pendingPreviewStrokes(edits),
+      hasUnappliedMaskChanges: true,
     );
-    unawaited(processSelectedImage());
   }
 
   void redoMaskEdit() {
@@ -220,15 +246,12 @@ class BlurController extends StateNotifier<BlurState> {
     state = state.copyWith(
       maskEdits: [...state.maskEdits, restored],
       undoneMaskEdits: undone,
-      pendingMaskPreviewStroke: null,
+      pendingMaskPreviewStrokes: _pendingPreviewStrokes([
+        ...state.maskEdits,
+        restored,
+      ]),
+      hasUnappliedMaskChanges: true,
     );
-    unawaited(processSelectedImage());
-  }
-
-  void _scheduleMaskProcessing() {
-    if (state.selectedImage != null) {
-      _sliderDebouncer(processSelectedImage);
-    }
   }
 
   void toggleOriginal() {
@@ -238,7 +261,7 @@ class BlurController extends StateNotifier<BlurState> {
     state = state.copyWith(showOriginal: !state.showOriginal);
   }
 
-  Future<void> processSelectedImage() async {
+  Future<void> processSelectedImage({bool applyMaskChanges = false}) async {
     final image = state.selectedImage;
     if (image == null) {
       return;
@@ -249,6 +272,7 @@ class BlurController extends StateNotifier<BlurState> {
     state = state.copyWith(
       isProcessing: true,
       processingProgress: 0.08,
+      isProcessingFinalizing: false,
       errorMessage: null,
       successMessage: null,
     );
@@ -271,7 +295,12 @@ class BlurController extends StateNotifier<BlurState> {
         isProcessing: false,
         showOriginal: false,
         processingProgress: 1,
-        pendingMaskPreviewStroke: null,
+        isProcessingFinalizing: false,
+        pendingMaskPreviewStrokes: const [],
+        appliedMaskEditCount: state.maskEdits.length,
+        hasUnappliedMaskChanges: applyMaskChanges
+            ? false
+            : state.hasUnappliedMaskChanges,
       );
     } catch (error) {
       if (run != _processingRun) {
@@ -281,10 +310,16 @@ class BlurController extends StateNotifier<BlurState> {
       state = state.copyWith(
         isProcessing: false,
         processingProgress: 0,
+        isProcessingFinalizing: false,
         errorMessage: _friendlyError(error),
-        pendingMaskPreviewStroke: null,
+        pendingMaskPreviewStrokes: state.pendingMaskPreviewStrokes,
       );
     }
+  }
+
+  List<MaskStroke> _pendingPreviewStrokes(List<MaskStroke> edits) {
+    final start = state.appliedMaskEditCount.clamp(0, edits.length);
+    return List.unmodifiable(edits.skip(start));
   }
 
   Future<void> saveImage() async {
@@ -325,8 +360,15 @@ class BlurController extends StateNotifier<BlurState> {
       if (!mounted || !state.isProcessing) {
         return;
       }
-      final next = math.min(0.92, state.processingProgress + 0.035);
-      state = state.copyWith(processingProgress: next);
+      if (state.isProcessingFinalizing) {
+        return;
+      }
+      final next = math.min(0.78, state.processingProgress + 0.035);
+      final isFinalizing = next >= 0.78;
+      state = state.copyWith(
+        processingProgress: next,
+        isProcessingFinalizing: isFinalizing,
+      );
     });
   }
 

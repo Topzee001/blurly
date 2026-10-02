@@ -36,6 +36,16 @@ void main() {
     expect(find.text('45%'), findsOneWidget);
   });
 
+  testWidgets('empty preview starts the same gallery flow', (tester) async {
+    final repository = await pumpBlurPage(tester);
+
+    await tester.tap(find.byKey(const ValueKey('emptyPreviewPickButton')));
+    await tester.pumpAndSettle();
+
+    expect(repository.pickCount, 1);
+    expect(repository.processCount, 1);
+  });
+
   testWidgets('slider interaction updates blur intensity', (tester) async {
     final repository = await pumpBlurPage(tester);
     await tester.tap(find.byKey(const ValueKey('pickButton')));

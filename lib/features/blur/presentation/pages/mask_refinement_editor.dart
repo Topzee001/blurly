@@ -1,4 +1,5 @@
 import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
+import 'package:blurly/features/blur/presentation/controllers/blur_controller.dart';
 import 'package:blurly/features/blur/presentation/controllers/blur_providers.dart';
 import 'package:blurly/features/blur/presentation/widgets/mask_refinement_canvas.dart';
 import 'package:flutter/material.dart';
@@ -69,10 +70,12 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
                   canUndo: state.canUndoMaskEdit && !state.isProcessing,
                   canRedo: state.canRedoMaskEdit && !state.isProcessing,
                   canFinish: !state.isProcessing,
+                  hasUnappliedChanges: state.hasUnappliedMaskChanges,
                   onCancel: _cancel,
                   onUndo: controller.undoMaskEdit,
                   onRedo: controller.redoMaskEdit,
-                  onDone: _done,
+                  onDone: () =>
+                      _finish(controller, state.hasUnappliedMaskChanges),
                 ),
                 Expanded(
                   child: Stack(
@@ -90,8 +93,8 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
                                 isEditable: !state.isProcessing,
                                 brushMode: state.brushMode,
                                 brushSize: state.brushSize,
-                                pendingPreviewStroke:
-                                    state.pendingMaskPreviewStroke,
+                                pendingPreviewStrokes:
+                                    state.pendingMaskPreviewStrokes,
                                 previewBlurSigma: 5 + state.blurAmount * 0.35,
                                 onStroke: controller.addMaskStroke,
                               ),
@@ -148,8 +151,12 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
     setState(() => _selectedTool = tool);
   }
 
-  void _done() {
-    ref.read(blurControllerProvider.notifier).closeMaskRefinement();
+  void _finish(BlurController controller, bool hasUnappliedChanges) {
+    if (hasUnappliedChanges) {
+      controller.applyMaskRefinement();
+      return;
+    }
+    controller.closeMaskRefinement();
     _leaveEditor();
   }
 
@@ -182,6 +189,7 @@ class _EditorHeader extends StatelessWidget {
     required this.canUndo,
     required this.canRedo,
     required this.canFinish,
+    required this.hasUnappliedChanges,
     required this.onCancel,
     required this.onUndo,
     required this.onRedo,
@@ -191,6 +199,7 @@ class _EditorHeader extends StatelessWidget {
   final bool canUndo;
   final bool canRedo;
   final bool canFinish;
+  final bool hasUnappliedChanges;
   final VoidCallback onCancel;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
@@ -234,7 +243,7 @@ class _EditorHeader extends StatelessWidget {
           TextButton(
             key: const ValueKey('finishMaskRefinement'),
             onPressed: canFinish ? onDone : null,
-            child: const Text('Done'),
+            child: Text(hasUnappliedChanges ? 'Apply' : 'Done'),
           ),
         ],
       ),

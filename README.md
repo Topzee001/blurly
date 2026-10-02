@@ -59,8 +59,11 @@ background blur result.
 Open **Refine subject** after selecting an image. Use **Keep** to protect a
 missed part of the subject or **Blur** to mark an area as background. The
 **Mask** tool optionally previews the final selection: teal areas stay sharp
-and the rest is blurred. Brush edits, feathering, and expansion are replayed
-in the background isolate and can be undone, redone, cancelled, or applied.
+and the rest is blurred. Brush edits, feathering, and expansion stay editable
+until you tap **Apply**. Blurly then replays all refinements together in the
+background isolate, so a single stroke never interrupts your work. Edits can
+be undone, redone, cancelled, or applied; every pending brush stroke remains
+visible in the editor before processing begins.
 
 ## What Needs Work
 

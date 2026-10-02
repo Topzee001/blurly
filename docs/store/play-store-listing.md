@@ -68,17 +68,17 @@ Phone screenshots:
 - `docs/store/screenshots/phone/02-compare-original.png`
 - `docs/store/screenshots/phone/03-person-background-blur.png`
 - `docs/store/screenshots/phone/04-bokeh-style.png`
-- `docs/store/screenshots/phone/05-save-and-share.png`
+- `docs/store/screenshots/phone/05-refine-subject.png`
 - `docs/store/screenshots/phone/06-share-to-blurly.png`
 
-Each phone screenshot is 1080x1920 PNG with no alpha.
+Each phone screenshot is a 1080x1920 PNG with no alpha.
 
 Recommended upload order:
 
 1. `01-pick-or-shoot.png`
 2. `03-person-background-blur.png`
 3. `04-bokeh-style.png`
-4. `05-save-and-share.png`
+4. `05-refine-subject.png`
 5. `02-compare-original.png`
 6. `06-share-to-blurly.png`
 
@@ -88,10 +88,10 @@ the first five screenshots and remove the sixth.
 ## Screenshot Alt Text
 
 - Start screen showing options to pick a gallery photo or capture a portrait.
-- Original preview screen for comparing the unedited portrait.
-- Person mode screen showing a clear subject with a blurred background.
-- Bokeh mode screen showing a styled blurred background with intensity controls.
-- Blurly editor screen with save and share actions visible.
+- Original preview for comparing the unedited photo with the final result.
+- Background blur result showing a sharp subject and softly blurred setting.
+- Bokeh mode showing an alternative portrait-style background blur.
+- Refine Subject brush controls for keeping details sharp or adding blur.
 - Android share flow showing Blurly as a direct image share target.
 
 ## Privacy Policy URL
