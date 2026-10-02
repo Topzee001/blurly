@@ -140,11 +140,11 @@ class BlurController extends StateNotifier<BlurState> {
     state = state.copyWith(isRefiningMask: false, showMaskOverlay: false);
   }
 
-  Future<void> applyMaskRefinement() async {
+  Future<bool> applyMaskRefinement() async {
     if (!state.hasUnappliedMaskChanges || state.selectedImage == null) {
-      return;
+      return false;
     }
-    await processSelectedImage(applyMaskChanges: true);
+    return processSelectedImage(applyMaskChanges: true);
   }
 
   void discardMaskRefinement({
@@ -261,10 +261,10 @@ class BlurController extends StateNotifier<BlurState> {
     state = state.copyWith(showOriginal: !state.showOriginal);
   }
 
-  Future<void> processSelectedImage({bool applyMaskChanges = false}) async {
+  Future<bool> processSelectedImage({bool applyMaskChanges = false}) async {
     final image = state.selectedImage;
-    if (image == null) {
-      return;
+    if (image == null || (!applyMaskChanges && state.hasUnappliedMaskChanges)) {
+      return false;
     }
 
     final run = ++_processingRun;
@@ -287,7 +287,7 @@ class BlurController extends StateNotifier<BlurState> {
       );
       final processed = await _processBlurImage(image, options);
       if (run != _processingRun) {
-        return;
+        return false;
       }
       _stopProgress();
       state = state.copyWith(
@@ -296,15 +296,21 @@ class BlurController extends StateNotifier<BlurState> {
         showOriginal: false,
         processingProgress: 1,
         isProcessingFinalizing: false,
-        pendingMaskPreviewStrokes: const [],
-        appliedMaskEditCount: state.maskEdits.length,
+        pendingMaskPreviewStrokes: applyMaskChanges
+            ? const []
+            : state.pendingMaskPreviewStrokes,
+        appliedMaskEditCount: applyMaskChanges
+            ? state.maskEdits.length
+            : state.appliedMaskEditCount,
+        undoneMaskEdits: applyMaskChanges ? const [] : state.undoneMaskEdits,
         hasUnappliedMaskChanges: applyMaskChanges
             ? false
             : state.hasUnappliedMaskChanges,
       );
+      return true;
     } catch (error) {
       if (run != _processingRun) {
-        return;
+        return false;
       }
       _stopProgress();
       state = state.copyWith(
@@ -314,6 +320,7 @@ class BlurController extends StateNotifier<BlurState> {
         errorMessage: _friendlyError(error),
         pendingMaskPreviewStrokes: state.pendingMaskPreviewStrokes,
       );
+      return false;
     }
   }
 

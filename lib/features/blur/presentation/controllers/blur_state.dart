@@ -51,7 +51,7 @@ class BlurState {
 
   bool get hasImage => selectedImage != null;
   bool get canExport => processedImage != null && !isProcessing;
-  bool get canUndoMaskEdit => maskEdits.isNotEmpty;
+  bool get canUndoMaskEdit => maskEdits.length > appliedMaskEditCount;
   bool get canRedoMaskEdit => undoneMaskEdits.isNotEmpty;
 
   BlurState copyWith({

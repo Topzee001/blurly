@@ -27,10 +27,16 @@ enum _MaskTool { brush, feather, expand }
 class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
   _MaskTool _selectedTool = _MaskTool.brush;
   bool _isLeaving = false;
+  late List<MaskStroke> _cancelBaselineEdits;
+  late int _cancelBaselineEdgeFeather;
+  late int _cancelBaselineMaskExpansion;
 
   @override
   void initState() {
     super.initState();
+    _cancelBaselineEdits = List.of(widget.initialEdits);
+    _cancelBaselineEdgeFeather = widget.initialEdgeFeather;
+    _cancelBaselineMaskExpansion = widget.initialMaskExpansion;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(blurControllerProvider.notifier).setMaskRefinementEnabled(true);
     });
@@ -151,9 +157,21 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
     setState(() => _selectedTool = tool);
   }
 
-  void _finish(BlurController controller, bool hasUnappliedChanges) {
+  Future<void> _finish(
+    BlurController controller,
+    bool hasUnappliedChanges,
+  ) async {
     if (hasUnappliedChanges) {
-      controller.applyMaskRefinement();
+      final didApply = await controller.applyMaskRefinement();
+      if (!didApply || !mounted) {
+        return;
+      }
+      final state = ref.read(blurControllerProvider);
+      setState(() {
+        _cancelBaselineEdits = List.of(state.maskEdits);
+        _cancelBaselineEdgeFeather = state.edgeFeather;
+        _cancelBaselineMaskExpansion = state.maskExpansion;
+      });
       return;
     }
     controller.closeMaskRefinement();
@@ -164,9 +182,9 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
     ref
         .read(blurControllerProvider.notifier)
         .discardMaskRefinement(
-          maskEdits: widget.initialEdits,
-          edgeFeather: widget.initialEdgeFeather,
-          maskExpansion: widget.initialMaskExpansion,
+          maskEdits: _cancelBaselineEdits,
+          edgeFeather: _cancelBaselineEdgeFeather,
+          maskExpansion: _cancelBaselineMaskExpansion,
         );
     _leaveEditor();
   }

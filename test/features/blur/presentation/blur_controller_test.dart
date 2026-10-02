@@ -100,6 +100,31 @@ void main() {
     expect(repository.lastOptions?.maskEdits, hasLength(1));
     expect(repository.lastOptions?.maskEdits.single.mode, MaskBrushMode.keep);
     expect(controller.state.hasUnappliedMaskChanges, isFalse);
+    expect(controller.state.canUndoMaskEdit, isFalse);
+    expect(controller.state.canRedoMaskEdit, isFalse);
+  });
+
+  test('defers non-Apply processing while mask edits are pending', () async {
+    final repository = FakeBlurRepository();
+    final controller = buildController(repository);
+    await controller.pickImage();
+
+    controller.addMaskStroke(const [MaskPoint(0.2, 0.2)]);
+    controller.updateBlurAmount(31);
+    await Future<void>.delayed(Duration.zero);
+    await controller.setBlurMode(BlurMode.bokeh);
+
+    expect(repository.processCount, 1);
+    expect(controller.state.pendingMaskPreviewStrokes, hasLength(1));
+    expect(controller.state.appliedMaskEditCount, 0);
+    expect(controller.state.hasUnappliedMaskChanges, isTrue);
+
+    await controller.applyMaskRefinement();
+
+    expect(repository.processCount, 2);
+    expect(repository.lastOptions?.blurAmount, 31);
+    expect(repository.lastOptions?.mode, BlurMode.bokeh);
+    expect(controller.state.hasUnappliedMaskChanges, isFalse);
   });
 
   test(
