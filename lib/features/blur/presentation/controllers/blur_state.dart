@@ -12,6 +12,7 @@ class BlurState {
     this.errorMessage,
     this.successMessage,
     this.processingProgress = 0,
+    this.isProcessingFinalizing = false,
     this.blurMode = BlurMode.background,
     this.isRefiningMask = false,
     this.showMaskOverlay = false,
@@ -21,7 +22,9 @@ class BlurState {
     this.maskExpansion = 0,
     this.maskEdits = const [],
     this.undoneMaskEdits = const [],
-    this.pendingMaskPreviewStroke,
+    this.pendingMaskPreviewStrokes = const [],
+    this.appliedMaskEditCount = 0,
+    this.hasUnappliedMaskChanges = false,
   });
 
   final BlurImage? selectedImage;
@@ -32,6 +35,7 @@ class BlurState {
   final String? errorMessage;
   final String? successMessage;
   final double processingProgress;
+  final bool isProcessingFinalizing;
   final BlurMode blurMode;
   final bool isRefiningMask;
   final bool showMaskOverlay;
@@ -41,11 +45,13 @@ class BlurState {
   final int maskExpansion;
   final List<MaskStroke> maskEdits;
   final List<MaskStroke> undoneMaskEdits;
-  final MaskStroke? pendingMaskPreviewStroke;
+  final List<MaskStroke> pendingMaskPreviewStrokes;
+  final int appliedMaskEditCount;
+  final bool hasUnappliedMaskChanges;
 
   bool get hasImage => selectedImage != null;
   bool get canExport => processedImage != null && !isProcessing;
-  bool get canUndoMaskEdit => maskEdits.isNotEmpty;
+  bool get canUndoMaskEdit => maskEdits.length > appliedMaskEditCount;
   bool get canRedoMaskEdit => undoneMaskEdits.isNotEmpty;
 
   BlurState copyWith({
@@ -57,6 +63,7 @@ class BlurState {
     Object? errorMessage = _sentinel,
     Object? successMessage = _sentinel,
     double? processingProgress,
+    bool? isProcessingFinalizing,
     BlurMode? blurMode,
     bool? isRefiningMask,
     bool? showMaskOverlay,
@@ -66,7 +73,9 @@ class BlurState {
     int? maskExpansion,
     List<MaskStroke>? maskEdits,
     List<MaskStroke>? undoneMaskEdits,
-    Object? pendingMaskPreviewStroke = _sentinel,
+    List<MaskStroke>? pendingMaskPreviewStrokes,
+    int? appliedMaskEditCount,
+    bool? hasUnappliedMaskChanges,
   }) {
     return BlurState(
       selectedImage: identical(selectedImage, _sentinel)
@@ -85,6 +94,8 @@ class BlurState {
           ? this.successMessage
           : successMessage as String?,
       processingProgress: processingProgress ?? this.processingProgress,
+      isProcessingFinalizing:
+          isProcessingFinalizing ?? this.isProcessingFinalizing,
       blurMode: blurMode ?? this.blurMode,
       isRefiningMask: isRefiningMask ?? this.isRefiningMask,
       showMaskOverlay: showMaskOverlay ?? this.showMaskOverlay,
@@ -94,9 +105,11 @@ class BlurState {
       maskExpansion: maskExpansion ?? this.maskExpansion,
       maskEdits: maskEdits ?? this.maskEdits,
       undoneMaskEdits: undoneMaskEdits ?? this.undoneMaskEdits,
-      pendingMaskPreviewStroke: identical(pendingMaskPreviewStroke, _sentinel)
-          ? this.pendingMaskPreviewStroke
-          : pendingMaskPreviewStroke as MaskStroke?,
+      pendingMaskPreviewStrokes:
+          pendingMaskPreviewStrokes ?? this.pendingMaskPreviewStrokes,
+      appliedMaskEditCount: appliedMaskEditCount ?? this.appliedMaskEditCount,
+      hasUnappliedMaskChanges:
+          hasUnappliedMaskChanges ?? this.hasUnappliedMaskChanges,
     );
   }
 }
