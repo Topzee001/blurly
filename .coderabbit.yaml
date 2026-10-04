@@ -1,5 +1,11 @@
 language: en-US
 
+# 250 characters max. Use this to give the AI context about your project, e.g. "This is a Flutter app using Riverpod and feature-first layout under lib/features/*/{data,domain,presentation}."
+tone_instructions: |
+  This is a Flutter/Dart app using Riverpod, feature-first layout under
+  lib/features/*/{data,domain,presentation}. Prefer concrete, actionable
+  feedback over general style opinions.
+
 reviews:
   profile: chill # Use "assertive" for stricter, more thorough reviews.
   request_changes_workflow: false
@@ -46,17 +52,17 @@ reviews:
     - "!**/*.lock"
     - "!third_party/**"
 
-  instructions: |
-    This is a Flutter/Dart app (Riverpod state management, feature-first layout
-    under lib/features/*/{data,domain,presentation}).
-    - Check the PR description against the repo template: flag placeholder text
-      that was never filled in (e.g. "Describe what changed and why.").
-    - If the PR changes UI or image output, flag it when there are no
-      screenshots or before/after images.
-    - Prefer concrete, actionable feedback over general style opinions.
+  # instructions: |
 
   # Rules that apply only to matching files. Each entry = a glob + plain-English instructions.
   path_instructions:
+    - path: "**/*"
+      instructions: |
+        - Check the PR description against the repo template: flag placeholder
+          text that was never filled in (e.g. "Describe what changed and why.").
+        - If the PR changes UI or image output, flag it when there are no
+          screenshots or before/after images.
+
     - path: "lib/features/**/domain/**"
       instructions: |
         The domain layer must stay pure Dart: no Flutter, platform, or
