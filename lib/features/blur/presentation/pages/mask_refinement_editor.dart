@@ -44,6 +44,9 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
     });
   }
 
+  /// Builds the refinement editor with viewport gestures and draft controls.
+  ///
+  /// Brush input is enabled only for the brush tool while processing is idle.
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(blurControllerProvider);
@@ -166,6 +169,10 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
     setState(() => _selectedTool = tool);
   }
 
+  /// Updates reset-control visibility when the canvas leaves its fitted view.
+  ///
+  /// [isModified] indicates zoom or pan. Ignores unchanged values and
+  /// notifications after disposal.
   void _onViewportChanged(bool isModified) {
     if (_isViewportModified == isModified || !mounted) {
       return;
@@ -173,6 +180,7 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
     setState(() => _isViewportModified = isModified);
   }
 
+  /// Requests that the canvas restore its fitted view on the next rebuild.
   void _resetViewport() {
     setState(() => _resetViewportRequest++);
   }
@@ -223,6 +231,9 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
 }
 
 class _EditorHeader extends StatelessWidget {
+  /// Creates editor actions, showing a fit control when [canResetViewport].
+  ///
+  /// [hasUnappliedChanges] selects the Apply label; otherwise it shows Done.
   const _EditorHeader({
     required this.canUndo,
     required this.canRedo,
@@ -247,6 +258,7 @@ class _EditorHeader extends StatelessWidget {
   final VoidCallback onResetViewport;
   final VoidCallback onDone;
 
+  /// Builds cancel, history, optional fit, and Apply or Done controls.
   @override
   Widget build(BuildContext context) {
     return SizedBox(
