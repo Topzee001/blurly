@@ -27,6 +27,8 @@ enum _MaskTool { brush, feather, expand }
 class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
   _MaskTool _selectedTool = _MaskTool.brush;
   bool _isLeaving = false;
+  bool _isViewportModified = false;
+  int _resetViewportRequest = 0;
   late List<MaskStroke> _cancelBaselineEdits;
   late int _cancelBaselineEdgeFeather;
   late int _cancelBaselineMaskExpansion;
@@ -77,9 +79,11 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
                   canRedo: state.canRedoMaskEdit && !state.isProcessing,
                   canFinish: !state.isProcessing,
                   hasUnappliedChanges: state.hasUnappliedMaskChanges,
+                  canResetViewport: _isViewportModified,
                   onCancel: _cancel,
                   onUndo: controller.undoMaskEdit,
                   onRedo: controller.redoMaskEdit,
+                  onResetViewport: _resetViewport,
                   onDone: () =>
                       _finish(controller, state.hasUnappliedMaskChanges),
                 ),
@@ -96,13 +100,18 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
                                 originalImage: selected,
                                 maskOverlayBytes: editorImage.maskOverlayBytes,
                                 showOverlay: state.showMaskOverlay,
-                                isEditable: !state.isProcessing,
+                                isEditable:
+                                    !state.isProcessing &&
+                                    _selectedTool == _MaskTool.brush,
                                 brushMode: state.brushMode,
                                 brushSize: state.brushSize,
                                 pendingPreviewStrokes:
                                     state.pendingMaskPreviewStrokes,
                                 previewBlurSigma: 5 + state.blurAmount * 0.35,
                                 onStroke: controller.addMaskStroke,
+                                enableViewportGestures: true,
+                                resetViewportRequest: _resetViewportRequest,
+                                onViewportChanged: _onViewportChanged,
                               ),
                       ),
                       if (state.showMaskOverlay)
@@ -157,6 +166,17 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
     setState(() => _selectedTool = tool);
   }
 
+  void _onViewportChanged(bool isModified) {
+    if (_isViewportModified == isModified || !mounted) {
+      return;
+    }
+    setState(() => _isViewportModified = isModified);
+  }
+
+  void _resetViewport() {
+    setState(() => _resetViewportRequest++);
+  }
+
   Future<void> _finish(
     BlurController controller,
     bool hasUnappliedChanges,
@@ -208,9 +228,11 @@ class _EditorHeader extends StatelessWidget {
     required this.canRedo,
     required this.canFinish,
     required this.hasUnappliedChanges,
+    required this.canResetViewport,
     required this.onCancel,
     required this.onUndo,
     required this.onRedo,
+    required this.onResetViewport,
     required this.onDone,
   });
 
@@ -218,9 +240,11 @@ class _EditorHeader extends StatelessWidget {
   final bool canRedo;
   final bool canFinish;
   final bool hasUnappliedChanges;
+  final bool canResetViewport;
   final VoidCallback onCancel;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
+  final VoidCallback onResetViewport;
   final VoidCallback onDone;
 
   @override
@@ -258,6 +282,14 @@ class _EditorHeader extends StatelessWidget {
             color: Colors.white,
             disabledColor: Colors.white30,
           ),
+          if (canResetViewport)
+            IconButton(
+              key: const ValueKey('resetMaskViewport'),
+              tooltip: 'Fit image to screen',
+              onPressed: onResetViewport,
+              icon: const Icon(Icons.fit_screen),
+              color: Colors.white,
+            ),
           TextButton(
             key: const ValueKey('finishMaskRefinement'),
             onPressed: canFinish ? onDone : null,

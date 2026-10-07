@@ -1,8 +1,8 @@
 # Privacy Policy
 
-Last updated: July 19, 2026
+Last updated: October 6, 2026
 
-Blurly is an on-device photo editing app for Android. It lets you pick,
+Blurly is an on-device photo editing app for Android and iOS. It lets you pick,
 capture, receive, blur, save, and share images from your device.
 
 ## Data Collection
@@ -19,14 +19,14 @@ Blurly may ask for camera and photo/media permissions so you can:
 - Take a photo with your camera.
 - Process the selected photo locally on your device.
 - Save the processed image to your gallery.
-- Share the processed image through Android's share sheet.
+- Share the processed image through your device's system share sheet.
 
 Photos are processed on the device. Blurly does not upload your photos to a
 server.
 
 If you choose to share a processed image with another app, that transfer is
-initiated by you through Android's share sheet. The receiving app's own privacy
-policy applies after you share the image.
+initiated by you through your device's system share sheet. The receiving app's
+own privacy policy applies after you share the image.
 
 ## Local Processing
 

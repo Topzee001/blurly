@@ -1,6 +1,6 @@
 # Play Store Asset Checklist
 
-Generated for Blurly on July 18, 2026.
+Last reviewed for Blurly on October 6, 2026.
 
 ## Required Store Assets
 

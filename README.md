@@ -29,10 +29,13 @@ Improving this is the main open-source contribution area.
 - Run heavy image work in an isolate.
 - Downscale very large images before processing.
 - Adjust blur intensity from 0% to 100%.
-- Refine the AI mask with Keep and Blur brushes.
-- Preview the final segmentation mask over the image.
-- Undo and redo brush edits.
-- Adjust edge feathering and mask expansion before compositing.
+- Refine the AI mask with Keep sharp and Add blur brushes.
+- Preview pending brush edits and the final segmentation mask over the image.
+- Undo and redo draft brush edits before applying them.
+- Adjust edge feathering and subject expansion before compositing.
+- Pinch to zoom and use two fingers to pan while refining detailed edges.
+- Apply all refinement changes together in the background isolate.
+- Tap the empty image preview to pick a photo quickly.
 - Toggle original/processed preview.
 - Save processed PNGs to the gallery.
 - Share processed PNGs.
@@ -56,14 +59,16 @@ background blur result.
 
 ## Mask Refinement
 
-Open **Refine subject** after selecting an image. Use **Keep** to protect a
-missed part of the subject or **Blur** to mark an area as background. The
+Open **Refine subject** after selecting an image. Use **Keep sharp** to protect
+a missed part of the subject or **Add blur** to mark an area as background. The
 **Mask** tool optionally previews the final selection: teal areas stay sharp
 and the rest is blurred. Brush edits, feathering, and expansion stay editable
 until you tap **Apply**. Blurly then replays all refinements together in the
 background isolate, so a single stroke never interrupts your work. Edits can
 be undone, redone, cancelled, or applied; every pending brush stroke remains
-visible in the editor before processing begins.
+visible in the editor before processing begins. Pinch to zoom and drag with
+two fingers to pan around detailed edges; use the fit-to-screen control to
+return to the full photo.
 
 ## What Needs Work
 
@@ -153,7 +158,7 @@ Blurly uses a small Clean Architecture slice:
 5. Run the bundled selfie segmentation model.
 6. Convert binary or multiclass output into a foreground mask.
 7. Fall back to a centered subject mask when the AI mask is unusable.
-8. Apply mask expansion/shrink and manual Keep/Blur brush edits.
+8. Apply mask expansion/shrink and manual Keep sharp/Add blur brush edits.
 9. Feather mask edges and produce a mask-preview overlay.
 10. Blur the background with the `image` package.
 11. Composite original foreground over blurred background.

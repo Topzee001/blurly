@@ -42,7 +42,8 @@ Use the same architecture boundaries already in the project:
 
 - Add a general object segmentation model.
 - Add a depth-estimation model.
-- Add manual brush/mask refinement.
+- Improve the existing Keep sharp/Add blur refinement workflow.
+- Add visual regression tests for brush, feather, and expansion results.
 - Add golden-image regression tests.
 - Add Android/iOS performance benchmarks.
 - Replace the vendored gallery saver dependency with a maintained alternative.
