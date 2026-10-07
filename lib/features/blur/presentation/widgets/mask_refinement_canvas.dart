@@ -1,8 +1,9 @@
+import 'dart:typed_data';
 import 'dart:ui' as ui;
+
 import 'package:blurly/features/blur/domain/entities/blur_image.dart';
 import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
 import 'package:flutter/material.dart';
-import 'dart:typed_data';
 
 class MaskRefinementCanvas extends StatefulWidget {
   const MaskRefinementCanvas({
@@ -17,6 +18,9 @@ class MaskRefinementCanvas extends StatefulWidget {
     this.pendingPreviewStrokes = const [],
     this.previewBlurSigma = 8,
     this.maskOverlayBytes,
+    this.enableViewportGestures = false,
+    this.resetViewportRequest = 0,
+    this.onViewportChanged,
   });
 
   final BlurImage image;
@@ -34,6 +38,11 @@ class MaskRefinementCanvas extends StatefulWidget {
   final double previewBlurSigma;
   final Uint8List? maskOverlayBytes;
 
+  /// Enables two-finger pinch-to-zoom and pan without changing brush output.
+  final bool enableViewportGestures;
+  final int resetViewportRequest;
+  final ValueChanged<bool>? onViewportChanged;
+
   @override
   State<MaskRefinementCanvas> createState() => _MaskRefinementCanvasState();
 }
@@ -44,6 +53,15 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
   Size? _imageSize;
   final List<MaskPoint> _activeStroke = [];
   Rect? _imageRect;
+  Size? _viewportSize;
+  double _viewportScale = 1;
+  Offset _viewportOffset = Offset.zero;
+  double _scaleAtGestureStart = 1;
+  Offset _offsetAtGestureStart = Offset.zero;
+  Offset _focalPointAtGestureStart = Offset.zero;
+  double _distanceAtGestureStart = 1;
+  final Map<int, Offset> _activePointers = {};
+  bool _isDrawingStroke = false;
 
   @override
   void initState() {
@@ -57,6 +75,9 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     if (oldWidget.image.bytes != widget.image.bytes) {
       _imageSize = null;
       _resolveImageSize();
+    }
+    if (oldWidget.resetViewportRequest != widget.resetViewportRequest) {
+      _resetViewport();
     }
   }
 
@@ -104,7 +125,8 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
           size,
         );
         _imageRect = rect;
-        return Stack(
+        _viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
+        final content = Stack(
           children: [
             Positioned.fromRect(
               rect: rect,
@@ -154,17 +176,47 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
                   ),
                 ),
               ),
-            if (widget.isEditable)
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onPanStart: _startStroke,
-                  onPanUpdate: _extendStroke,
-                  onPanEnd: (_) => _finishStroke(),
-                  onPanCancel: _finishStroke,
-                ),
-              ),
           ],
+        );
+
+        return ClipRect(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..translateByDouble(
+                    _viewportOffset.dx,
+                    _viewportOffset.dy,
+                    0,
+                    1,
+                  )
+                  ..scaleByDouble(_viewportScale, _viewportScale, 1, 1),
+                child: content,
+              ),
+              if (widget.enableViewportGestures)
+                Positioned.fill(
+                  child: Listener(
+                    onPointerDown: _onPointerDown,
+                    onPointerMove: _onPointerMove,
+                    onPointerUp: _onPointerUp,
+                    onPointerCancel: _onPointerCancel,
+                    behavior: HitTestBehavior.translucent,
+                  ),
+                )
+              else if (widget.isEditable)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onPanStart: _startStroke,
+                    onPanUpdate: _extendStroke,
+                    onPanEnd: (_) => _finishStroke(),
+                    onPanCancel: _finishStroke,
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -196,17 +248,146 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
 
   void _addPoint(Offset position) {
     final rect = _imageRect;
-    if (rect == null || !rect.contains(position)) {
+    final imagePosition = _imagePositionFor(position);
+    if (rect == null ||
+        imagePosition == null ||
+        !rect.contains(imagePosition)) {
       return;
     }
     setState(() {
       _activeStroke.add(
         MaskPoint(
-          ((position.dx - rect.left) / rect.width).clamp(0, 1),
-          ((position.dy - rect.top) / rect.height).clamp(0, 1),
+          ((imagePosition.dx - rect.left) / rect.width).clamp(0, 1),
+          ((imagePosition.dy - rect.top) / rect.height).clamp(0, 1),
         ),
       );
     });
+  }
+
+  Offset? _imagePositionFor(Offset position) {
+    final viewportSize = _viewportSize;
+    if (viewportSize == null) {
+      return null;
+    }
+    final center = viewportSize.center(Offset.zero);
+    return center + (position - center - _viewportOffset) / _viewportScale;
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    _activePointers[event.pointer] = event.localPosition;
+    if (_activePointers.length == 1 && widget.isEditable) {
+      _activeStroke.clear();
+      _isDrawingStroke = true;
+      _addPoint(event.localPosition);
+      return;
+    }
+    if (_activePointers.length == 2) {
+      _isDrawingStroke = false;
+      _cancelActiveStroke();
+      _beginViewportTransform();
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (!_activePointers.containsKey(event.pointer)) {
+      return;
+    }
+    _activePointers[event.pointer] = event.localPosition;
+    if (_activePointers.length == 1 && _isDrawingStroke) {
+      _addPoint(event.localPosition);
+    } else if (_activePointers.length >= 2) {
+      _updateViewport();
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    final wasDrawing = _isDrawingStroke;
+    _activePointers.remove(event.pointer);
+    if (wasDrawing) {
+      _isDrawingStroke = false;
+      _finishStroke();
+    } else if (_activePointers.length == 1) {
+      _beginViewportTransform();
+    }
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _activePointers.remove(event.pointer);
+    _isDrawingStroke = false;
+    _cancelActiveStroke();
+    if (_activePointers.length == 1) {
+      _beginViewportTransform();
+    }
+  }
+
+  void _beginViewportTransform() {
+    if (_activePointers.length < 2) {
+      return;
+    }
+    final points = _activePointers.values.take(2).toList(growable: false);
+    _scaleAtGestureStart = _viewportScale;
+    _offsetAtGestureStart = _viewportOffset;
+    _focalPointAtGestureStart = _focalPoint(points);
+    _distanceAtGestureStart = (points.first - points.last).distance;
+  }
+
+  void _updateViewport() {
+    final viewportSize = _viewportSize;
+    if (viewportSize == null || _activePointers.length < 2) {
+      return;
+    }
+    final points = _activePointers.values.take(2).toList(growable: false);
+    final distance = (points.first - points.last).distance;
+    final scaleFactor = _distanceAtGestureStart == 0
+        ? 1.0
+        : distance / _distanceAtGestureStart;
+    final scale = (_scaleAtGestureStart * scaleFactor).clamp(1.0, 4.0);
+    final center = viewportSize.center(Offset.zero);
+    final imagePointUnderFocal =
+        (_focalPointAtGestureStart - center - _offsetAtGestureStart) /
+        _scaleAtGestureStart;
+    final offset = _focalPoint(points) - center - imagePointUnderFocal * scale;
+    final maxX = viewportSize.width * (scale - 1) / 2;
+    final maxY = viewportSize.height * (scale - 1) / 2;
+    final clampedOffset = Offset(
+      offset.dx.clamp(-maxX, maxX),
+      offset.dy.clamp(-maxY, maxY),
+    );
+    final changed = scale != _viewportScale || clampedOffset != _viewportOffset;
+    if (!changed) {
+      return;
+    }
+    setState(() {
+      _viewportScale = scale;
+      _viewportOffset = clampedOffset;
+    });
+    _notifyViewportChanged();
+  }
+
+  Offset _focalPoint(List<Offset> points) => (points.first + points.last) / 2;
+
+  void _resetViewport() {
+    if (_viewportScale == 1 && _viewportOffset == Offset.zero) {
+      return;
+    }
+    setState(() {
+      _viewportScale = 1;
+      _viewportOffset = Offset.zero;
+    });
+    _notifyViewportChanged();
+  }
+
+  void _notifyViewportChanged() {
+    widget.onViewportChanged?.call(
+      _viewportScale != 1 || _viewportOffset != Offset.zero,
+    );
+  }
+
+  void _cancelActiveStroke() {
+    if (_activeStroke.isEmpty || !mounted) {
+      return;
+    }
+    setState(_activeStroke.clear);
   }
 
   void _finishStroke() {
