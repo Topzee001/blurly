@@ -374,7 +374,6 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
       _viewportScale = 1;
       _viewportOffset = Offset.zero;
     });
-    _notifyViewportChanged();
   }
 
   void _notifyViewportChanged() {

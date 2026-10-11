@@ -174,7 +174,10 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
   }
 
   void _resetViewport() {
-    setState(() => _resetViewportRequest++);
+    setState(() {
+      _isViewportModified = false;
+      _resetViewportRequest++;
+    });
   }
 
   Future<void> _finish(
