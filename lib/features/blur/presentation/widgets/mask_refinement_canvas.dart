@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -333,7 +334,10 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
 
   void _updateViewport() {
     final viewportSize = _viewportSize;
-    if (viewportSize == null || _activePointers.length < 2) {
+    final imageRect = _imageRect;
+    if (viewportSize == null ||
+        imageRect == null ||
+        _activePointers.length < 2) {
       return;
     }
     final points = _activePointers.values.take(2).toList(growable: false);
@@ -347,8 +351,14 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
         (_focalPointAtGestureStart - center - _offsetAtGestureStart) /
         _scaleAtGestureStart;
     final offset = _focalPoint(points) - center - imagePointUnderFocal * scale;
-    final maxX = viewportSize.width * (scale - 1) / 2;
-    final maxY = viewportSize.height * (scale - 1) / 2;
+    final maxX = math.max(
+      0.0,
+      (imageRect.width * scale - viewportSize.width) / 2,
+    );
+    final maxY = math.max(
+      0.0,
+      (imageRect.height * scale - viewportSize.height) / 2,
+    );
     final clampedOffset = Offset(
       offset.dx.clamp(-maxX, maxX),
       offset.dy.clamp(-maxY, maxY),
