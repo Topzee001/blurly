@@ -7,6 +7,16 @@ import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
 import 'package:flutter/material.dart';
 
 class MaskRefinementCanvas extends StatefulWidget {
+  /// Creates an image preview with optional mask overlays and brush editing.
+  ///
+  /// [brushSize] is a radius relative to the displayed image's shortest side;
+  /// [onStroke] receives completed strokes in normalized image coordinates.
+  /// [enableViewportGestures] allows zooming from 1x to 4x and panning with two
+  /// pointers, even when [isEditable] is false. A second pointer cancels the
+  /// current brush stroke. Changing [resetViewportRequest] restores the fitted
+  /// view; its initial value does not trigger a reset. [onViewportChanged] is
+  /// called synchronously when the transform changes, with whether the view
+  /// differs from the fitted view.
   const MaskRefinementCanvas({
     super.key,
     required this.image,
@@ -70,6 +80,9 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     _resolveImageSize();
   }
 
+  /// Reloads image dimensions when bytes change and handles viewport resets.
+  ///
+  /// Changing the image alone preserves the current zoom and pan.
   @override
   void didUpdateWidget(covariant MaskRefinementCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -111,6 +124,9 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     super.dispose();
   }
 
+  /// Builds the clipped image, draft previews, overlay, and gesture surface.
+  ///
+  /// Shows only the image until dimensions and positive layout bounds exist.
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -247,6 +263,9 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     _addPoint(details.localPosition);
   }
 
+  /// Adds a viewport-local point to the stroke in normalized image coordinates.
+  ///
+  /// Ignores points outside the image or before layout geometry is available.
   void _addPoint(Offset position) {
     final rect = _imageRect;
     final imagePosition = _imagePositionFor(position);
@@ -265,6 +284,9 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     });
   }
 
+  /// Undoes zoom and pan for [position], in viewport-local logical pixels.
+  ///
+  /// Returns coordinates in the untransformed canvas, or null before layout.
   Offset? _imagePositionFor(Offset position) {
     final viewportSize = _viewportSize;
     if (viewportSize == null) {
@@ -274,6 +296,9 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     return center + (position - center - _viewportOffset) / _viewportScale;
   }
 
+  /// Starts an editable stroke with one pointer, or a transform with two.
+  ///
+  /// The second pointer discards the active stroke without submitting it.
   void _onPointerDown(PointerDownEvent event) {
     _activePointers[event.pointer] = event.localPosition;
     if (_activePointers.length == 1 && widget.isEditable) {
@@ -289,6 +314,9 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     }
   }
 
+  /// Extends the active stroke or updates the view using tracked pointers.
+  ///
+  /// Ignores untracked pointers; one remaining pointer cannot resume a stroke.
   void _onPointerMove(PointerMoveEvent event) {
     if (!_activePointers.containsKey(event.pointer)) {
       return;
@@ -301,6 +329,9 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     }
   }
 
+  /// Removes the pointer and submits a nonempty stroke if drawing was active.
+  ///
+  /// Errors from the stroke callback propagate and prevent stroke cleanup.
   void _onPointerUp(PointerUpEvent event) {
     final wasDrawing = _isDrawingStroke;
     _activePointers.remove(event.pointer);
@@ -312,6 +343,7 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     }
   }
 
+  /// Removes the canceled pointer and discards the unsubmitted stroke.
   void _onPointerCancel(PointerCancelEvent event) {
     _activePointers.remove(event.pointer);
     _isDrawingStroke = false;
@@ -321,6 +353,9 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     }
   }
 
+  /// Captures the starting view and first two pointers for a pinch or pan.
+  ///
+  /// Does nothing with fewer than two active pointers.
   void _beginViewportTransform() {
     if (_activePointers.length < 2) {
       return;
@@ -332,6 +367,11 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     _distanceAtGestureStart = (points.first - points.last).distance;
   }
 
+  /// Zooms and pans from the first two pointers, then notifies on a change.
+  ///
+  /// Clamps scale to 1x–4x and each pan axis to half the viewport's scaled
+  /// overflow. Coincident starting pointers preserve the starting scale.
+  /// Does nothing before layout or with fewer than two pointers.
   void _updateViewport() {
     final viewportSize = _viewportSize;
     final imageRect = _imageRect;
@@ -374,8 +414,12 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     _notifyViewportChanged();
   }
 
+  /// Returns the midpoint of the first and last points.
+  ///
+  /// Throws [StateError] if [points] is empty.
   Offset _focalPoint(List<Offset> points) => (points.first + points.last) / 2;
 
+  /// Restores the fitted view and notifies only if zoom or pan changed.
   void _resetViewport() {
     if (_viewportScale == 1 && _viewportOffset == Offset.zero) {
       return;
@@ -386,12 +430,16 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     });
   }
 
+  /// Reports whether zoom or pan differs from the fitted view, if requested.
+  ///
+  /// Calls the callback synchronously and lets its errors propagate.
   void _notifyViewportChanged() {
     widget.onViewportChanged?.call(
       _viewportScale != 1 || _viewportOffset != Offset.zero,
     );
   }
 
+  /// Discards a nonempty draft without submitting it, while mounted.
   void _cancelActiveStroke() {
     if (_activeStroke.isEmpty || !mounted) {
       return;
