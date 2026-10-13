@@ -96,7 +96,7 @@ class _PreviewImage extends StatelessWidget {
         isEditable: false,
         brushMode: MaskBrushMode.keep,
         brushSize: 0.035,
-        onStroke: (_) {},
+        onStroke: (_, _) {},
       ),
     );
   }

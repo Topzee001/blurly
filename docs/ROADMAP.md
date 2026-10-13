@@ -20,13 +20,21 @@ background, even when the subject is not a person.
 - Compare object, person, document, product, and cluttered-scene examples.
 - Add confidence/coverage checks before choosing the mask path.
 
-## Phase 3: User-Guided Refinement
+## Available Now: User-Guided Refinement
 
-- Add brush-to-keep and brush-to-blur tools.
-- Add undo/redo for mask edits.
-- Add mask preview overlay.
-- Add edge feather and mask expansion controls.
-- Save editable mask state with the selected image.
+- Keep sharp and Add blur brushes.
+- Draft stroke previews, undo, and redo before applying changes.
+- Optional mask preview overlay.
+- Edge feather and subject expansion controls.
+- Pinch to zoom and two-finger pan with a fit-to-screen reset control.
+- Explicit Apply processing, so drawing remains responsive.
+
+## Phase 3: Refinement Improvements
+
+- Persist editable mask state with a selected image or saved project.
+- Add edge-aware refinement for hair, transparent objects, and thin details.
+- Add brush stroke smoothing for precise editing.
+- Add golden-image tests for manual refinement output.
 
 ## Phase 4: Portrait Quality
 

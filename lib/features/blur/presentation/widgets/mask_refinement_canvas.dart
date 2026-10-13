@@ -1,10 +1,22 @@
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
+
 import 'package:blurly/features/blur/domain/entities/blur_image.dart';
 import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
 import 'package:flutter/material.dart';
-import 'dart:typed_data';
 
 class MaskRefinementCanvas extends StatefulWidget {
+  /// Creates an image preview with optional mask overlays and brush editing.
+  ///
+  /// [brushSize] is a radius relative to the fitted image's shortest side;
+  /// [onStroke] receives normalized points and the radius at the current zoom.
+  /// [enableViewportGestures] allows zooming from 1x to 4x and panning with two
+  /// pointers, even when [isEditable] is false. A second pointer cancels the
+  /// current brush stroke. Changing [resetViewportRequest] restores the fitted
+  /// view; its initial value does not trigger a reset. [onViewportChanged] is
+  /// called synchronously when the transform changes, with whether the view
+  /// differs from the fitted view.
   const MaskRefinementCanvas({
     super.key,
     required this.image,
@@ -17,6 +29,9 @@ class MaskRefinementCanvas extends StatefulWidget {
     this.pendingPreviewStrokes = const [],
     this.previewBlurSigma = 8,
     this.maskOverlayBytes,
+    this.enableViewportGestures = false,
+    this.resetViewportRequest = 0,
+    this.onViewportChanged,
   });
 
   final BlurImage image;
@@ -24,7 +39,7 @@ class MaskRefinementCanvas extends StatefulWidget {
   final bool isEditable;
   final MaskBrushMode brushMode;
   final double brushSize;
-  final ValueChanged<List<MaskPoint>> onStroke;
+  final void Function(List<MaskPoint> points, double radius) onStroke;
 
   /// The untouched photo is revealed within draft Keep sharp strokes.
   final BlurImage? originalImage;
@@ -33,6 +48,11 @@ class MaskRefinementCanvas extends StatefulWidget {
   final List<MaskStroke> pendingPreviewStrokes;
   final double previewBlurSigma;
   final Uint8List? maskOverlayBytes;
+
+  /// Enables two-finger pinch-to-zoom and pan without changing brush output.
+  final bool enableViewportGestures;
+  final int resetViewportRequest;
+  final ValueChanged<bool>? onViewportChanged;
 
   @override
   State<MaskRefinementCanvas> createState() => _MaskRefinementCanvasState();
@@ -44,6 +64,15 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
   Size? _imageSize;
   final List<MaskPoint> _activeStroke = [];
   Rect? _imageRect;
+  Size? _viewportSize;
+  double _viewportScale = 1;
+  Offset _viewportOffset = Offset.zero;
+  double _scaleAtGestureStart = 1;
+  Offset _offsetAtGestureStart = Offset.zero;
+  Offset _focalPointAtGestureStart = Offset.zero;
+  double _distanceAtGestureStart = 1;
+  final Map<int, Offset> _activePointers = {};
+  bool _isDrawingStroke = false;
 
   @override
   void initState() {
@@ -51,12 +80,18 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     _resolveImageSize();
   }
 
+  /// Reloads image dimensions when bytes change and handles viewport resets.
+  ///
+  /// Changing the image alone preserves the current zoom and pan.
   @override
   void didUpdateWidget(covariant MaskRefinementCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.image.bytes != widget.image.bytes) {
       _imageSize = null;
       _resolveImageSize();
+    }
+    if (oldWidget.resetViewportRequest != widget.resetViewportRequest) {
+      _resetViewport();
     }
   }
 
@@ -89,6 +124,9 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     super.dispose();
   }
 
+  /// Builds the clipped image, draft previews, overlay, and gesture surface.
+  ///
+  /// Shows only the image until dimensions and positive layout bounds exist.
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -104,7 +142,8 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
           size,
         );
         _imageRect = rect;
-        return Stack(
+        _viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
+        final content = Stack(
           children: [
             Positioned.fromRect(
               rect: rect,
@@ -148,23 +187,53 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
                   child: CustomPaint(
                     painter: _MaskStrokePainter(
                       activeStroke: _activeStroke,
-                      radius: widget.brushSize,
+                      radius: widget.brushSize / _viewportScale,
                       activeMode: widget.brushMode,
                     ),
                   ),
                 ),
               ),
-            if (widget.isEditable)
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onPanStart: _startStroke,
-                  onPanUpdate: _extendStroke,
-                  onPanEnd: (_) => _finishStroke(),
-                  onPanCancel: _finishStroke,
-                ),
-              ),
           ],
+        );
+
+        return ClipRect(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..translateByDouble(
+                    _viewportOffset.dx,
+                    _viewportOffset.dy,
+                    0,
+                    1,
+                  )
+                  ..scaleByDouble(_viewportScale, _viewportScale, 1, 1),
+                child: content,
+              ),
+              if (widget.enableViewportGestures)
+                Positioned.fill(
+                  child: Listener(
+                    onPointerDown: _onPointerDown,
+                    onPointerMove: _onPointerMove,
+                    onPointerUp: _onPointerUp,
+                    onPointerCancel: _onPointerCancel,
+                    behavior: HitTestBehavior.translucent,
+                  ),
+                )
+              else if (widget.isEditable)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onPanStart: _startStroke,
+                    onPanUpdate: _extendStroke,
+                    onPanEnd: (_) => _finishStroke(),
+                    onPanCancel: _finishStroke,
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -194,24 +263,196 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
     _addPoint(details.localPosition);
   }
 
+  /// Adds a viewport-local point to the stroke in normalized image coordinates.
+  ///
+  /// Ignores points outside the image or before layout geometry is available.
   void _addPoint(Offset position) {
     final rect = _imageRect;
-    if (rect == null || !rect.contains(position)) {
+    final imagePosition = _imagePositionFor(position);
+    if (rect == null ||
+        imagePosition == null ||
+        !rect.contains(imagePosition)) {
       return;
     }
     setState(() {
       _activeStroke.add(
         MaskPoint(
-          ((position.dx - rect.left) / rect.width).clamp(0, 1),
-          ((position.dy - rect.top) / rect.height).clamp(0, 1),
+          ((imagePosition.dx - rect.left) / rect.width).clamp(0, 1),
+          ((imagePosition.dy - rect.top) / rect.height).clamp(0, 1),
         ),
       );
     });
   }
 
+  /// Undoes zoom and pan for [position], in viewport-local logical pixels.
+  ///
+  /// Returns coordinates in the untransformed canvas, or null before layout.
+  Offset? _imagePositionFor(Offset position) {
+    final viewportSize = _viewportSize;
+    if (viewportSize == null) {
+      return null;
+    }
+    final center = viewportSize.center(Offset.zero);
+    return center + (position - center - _viewportOffset) / _viewportScale;
+  }
+
+  /// Starts an editable stroke with one pointer, or a transform with two.
+  ///
+  /// The second pointer discards the active stroke without submitting it.
+  void _onPointerDown(PointerDownEvent event) {
+    _activePointers[event.pointer] = event.localPosition;
+    if (_activePointers.length == 1 && widget.isEditable) {
+      _activeStroke.clear();
+      _isDrawingStroke = true;
+      _addPoint(event.localPosition);
+      return;
+    }
+    if (_activePointers.length == 2) {
+      _isDrawingStroke = false;
+      _cancelActiveStroke();
+      _beginViewportTransform();
+    }
+  }
+
+  /// Extends the active stroke or updates the view using tracked pointers.
+  ///
+  /// Ignores untracked pointers; one remaining pointer cannot resume a stroke.
+  void _onPointerMove(PointerMoveEvent event) {
+    if (!_activePointers.containsKey(event.pointer)) {
+      return;
+    }
+    _activePointers[event.pointer] = event.localPosition;
+    if (_activePointers.length == 1 && _isDrawingStroke) {
+      _addPoint(event.localPosition);
+    } else if (_activePointers.length >= 2) {
+      _updateViewport();
+    }
+  }
+
+  /// Removes the pointer and submits a nonempty stroke if drawing was active.
+  ///
+  /// Errors from the stroke callback propagate and prevent stroke cleanup.
+  void _onPointerUp(PointerUpEvent event) {
+    final wasDrawing = _isDrawingStroke;
+    _activePointers.remove(event.pointer);
+    if (wasDrawing) {
+      _isDrawingStroke = false;
+      _finishStroke();
+    } else if (_activePointers.length == 1) {
+      _beginViewportTransform();
+    }
+  }
+
+  /// Removes the canceled pointer and discards the unsubmitted stroke.
+  void _onPointerCancel(PointerCancelEvent event) {
+    _activePointers.remove(event.pointer);
+    _isDrawingStroke = false;
+    _cancelActiveStroke();
+    if (_activePointers.length == 1) {
+      _beginViewportTransform();
+    }
+  }
+
+  /// Captures the starting view and first two pointers for a pinch or pan.
+  ///
+  /// Does nothing with fewer than two active pointers.
+  void _beginViewportTransform() {
+    if (_activePointers.length < 2) {
+      return;
+    }
+    final points = _activePointers.values.take(2).toList(growable: false);
+    _scaleAtGestureStart = _viewportScale;
+    _offsetAtGestureStart = _viewportOffset;
+    _focalPointAtGestureStart = _focalPoint(points);
+    _distanceAtGestureStart = (points.first - points.last).distance;
+  }
+
+  /// Zooms and pans from the first two pointers, then notifies on a change.
+  ///
+  /// Clamps scale to 1x–4x and each pan axis to half the viewport's scaled
+  /// overflow. Coincident starting pointers preserve the starting scale.
+  /// Does nothing before layout or with fewer than two pointers.
+  void _updateViewport() {
+    final viewportSize = _viewportSize;
+    final imageRect = _imageRect;
+    if (viewportSize == null ||
+        imageRect == null ||
+        _activePointers.length < 2) {
+      return;
+    }
+    final points = _activePointers.values.take(2).toList(growable: false);
+    final distance = (points.first - points.last).distance;
+    final scaleFactor = _distanceAtGestureStart == 0
+        ? 1.0
+        : distance / _distanceAtGestureStart;
+    final scale = (_scaleAtGestureStart * scaleFactor).clamp(1.0, 4.0);
+    final center = viewportSize.center(Offset.zero);
+    final imagePointUnderFocal =
+        (_focalPointAtGestureStart - center - _offsetAtGestureStart) /
+        _scaleAtGestureStart;
+    final offset = _focalPoint(points) - center - imagePointUnderFocal * scale;
+    final maxX = math.max(
+      0.0,
+      (imageRect.width * scale - viewportSize.width) / 2,
+    );
+    final maxY = math.max(
+      0.0,
+      (imageRect.height * scale - viewportSize.height) / 2,
+    );
+    final clampedOffset = Offset(
+      offset.dx.clamp(-maxX, maxX),
+      offset.dy.clamp(-maxY, maxY),
+    );
+    final changed = scale != _viewportScale || clampedOffset != _viewportOffset;
+    if (!changed) {
+      return;
+    }
+    setState(() {
+      _viewportScale = scale;
+      _viewportOffset = clampedOffset;
+    });
+    _notifyViewportChanged();
+  }
+
+  /// Returns the midpoint of the first and last points.
+  ///
+  /// Throws [StateError] if [points] is empty.
+  Offset _focalPoint(List<Offset> points) => (points.first + points.last) / 2;
+
+  /// Restores the fitted view and notifies only if zoom or pan changed.
+  void _resetViewport() {
+    if (_viewportScale == 1 && _viewportOffset == Offset.zero) {
+      return;
+    }
+    setState(() {
+      _viewportScale = 1;
+      _viewportOffset = Offset.zero;
+    });
+  }
+
+  /// Reports whether zoom or pan differs from the fitted view, if requested.
+  ///
+  /// Calls the callback synchronously and lets its errors propagate.
+  void _notifyViewportChanged() {
+    widget.onViewportChanged?.call(
+      _viewportScale != 1 || _viewportOffset != Offset.zero,
+    );
+  }
+
+  /// Discards a nonempty draft without submitting it, while mounted.
+  void _cancelActiveStroke() {
+    if (_activeStroke.isEmpty || !mounted) {
+      return;
+    }
+    setState(_activeStroke.clear);
+  }
+
   void _finishStroke() {
     if (_activeStroke.isNotEmpty) {
-      widget.onStroke(List.of(_activeStroke));
+      widget.onStroke(
+        List.of(_activeStroke),
+        widget.brushSize / _viewportScale,
+      );
     }
     if (mounted) {
       setState(_activeStroke.clear);
@@ -267,7 +508,7 @@ class _MaskStrokeClipper extends CustomClipper<Path> {
       return Path();
     }
 
-    final radius = stroke.radius.clamp(0.012, 0.08) * size.shortestSide;
+    final radius = stroke.radius.clamp(0.001, 0.12) * size.shortestSide;
     final path = Path();
 
     void addCircle(Offset center) {
@@ -281,11 +522,18 @@ class _MaskStrokeClipper extends CustomClipper<Path> {
     addCircle(previous);
     for (final point in points.skip(1)) {
       final current = toOffset(point);
-      final distance = (current - previous).distance;
-      final steps = (distance / (radius * 0.55)).ceil().clamp(1, 160);
-      for (var index = 1; index <= steps; index++) {
-        addCircle(Offset.lerp(previous, current, index / steps)!);
+      final delta = current - previous;
+      final distance = delta.distance;
+      if (distance > 0) {
+        final normal = Offset(-delta.dy, delta.dx) * (radius / distance);
+        path.addPolygon([
+          previous - normal,
+          current - normal,
+          current + normal,
+          previous + normal,
+        ], true);
       }
+      addCircle(current);
       previous = current;
     }
     return path;

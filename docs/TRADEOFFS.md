@@ -1,7 +1,7 @@
 # Tradeoffs
 
-Blurly is intentionally small and local-first, but the current MVP makes several
-technical tradeoffs that affect blur quality.
+Blurly is intentionally focused and local-first, but the current MVP makes
+several technical tradeoffs that affect blur quality and download size.
 
 ## Current Quality Gap
 
@@ -27,20 +27,25 @@ look like a true AI background blur.
 
 The MVP optimized for:
 
-- Small app size.
+- Fully offline processing, accepting a larger app download for the bundled
+  segmentation model and TensorFlow Lite runtime.
 - Offline processing.
 - No backend or paid inference service.
 - A simple TFLite integration.
 - Fast enough processing on mobile devices.
 - A clean Flutter architecture that contributors can extend.
 
-It did not yet solve:
+It does not yet solve:
 
 - General object segmentation.
 - Depth estimation.
 - Multiple foreground subjects.
-- Manual mask editing.
 - Matting-level edge quality.
+
+Blurly now includes manual mask editing with Keep sharp and Add blur brushes,
+edge feathering, and subject expansion. These controls let users correct a
+result, but they do not make the underlying model understand the image better.
+The user must still identify the missed or incorrectly protected area.
 
 ## Blur Modes
 
@@ -75,10 +80,10 @@ The highest-impact improvements are:
 1. Add a general object segmentation model.
 2. Add a depth-estimation model and blur based on depth.
 3. Add saliency detection for non-person subjects.
-4. Add a manual brush tool for mask correction.
-5. Add mask erosion/dilation controls before feathering.
-6. Add a guided crop or subject bounding-box step.
-7. Add real-device benchmark images and expected-output tests.
+4. Improve manual refinement with zoom, pan, stroke smoothing, and edge-aware
+   corrections.
+5. Add a guided crop or subject bounding-box step.
+6. Add real-device benchmark images and expected-output tests.
 
 ## Model Options To Explore
 
@@ -109,6 +114,12 @@ Gaussian blur is CPU-based through the `image` package. It is simple and
 portable, but high blur radii are expensive. A future GPU or native pipeline may
 be faster.
 
+Manual refinements remain responsive because brush edits are previewed locally
+and are processed together only when the user taps Apply. The final image step
+can still take longer on large images, so the UI switches from estimated
+progress to an indeterminate finalizing state instead of showing a stalled
+percentage.
+
 ## Testing Tradeoffs
 
 The current tests cover mask generation, fallback behavior, compositing,
@@ -128,5 +139,6 @@ For open-source contributors, the best first issue area is mask quality:
 - Add benchmark input photos under a documented test fixture policy.
 - Add visual regression/golden tests for blur output.
 - Improve fallback masks.
-- Add manual subject refinement.
+- Improve manual subject refinement, especially fine edges and overlapping
+  strokes.
 - Evaluate a better segmentation model.

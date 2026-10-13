@@ -607,9 +607,9 @@ class MaskUtils {
       }
       final value = stroke.mode == MaskBrushMode.keep ? 255 : 0;
       final radius =
-          (stroke.radius.clamp(0.006, 0.12) * math.min(mask.width, mask.height))
+          (stroke.radius.clamp(0.001, 0.12) * math.min(mask.width, mask.height))
               .round()
-              .clamp(2, 220)
+              .clamp(1, 220)
               .toInt();
       for (var index = 0; index < stroke.points.length; index++) {
         final point = stroke.points[index];

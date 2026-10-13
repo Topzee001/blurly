@@ -1,0 +1,628 @@
+import 'dart:typed_data';
+
+import 'package:blurly/features/blur/domain/entities/blur_image.dart';
+import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
+import 'package:blurly/features/blur/presentation/widgets/mask_refinement_canvas.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
+
+import '../../../fakes/fake_blur_repository.dart';
+
+void main() {
+  testWidgets('zoomed strokes keep the fitted brush width on screen', (
+    tester,
+  ) async {
+    final photo = img.Image(width: 100, height: 100);
+    img.fill(photo, color: img.ColorRgb8(60, 180, 140));
+    final image = BlurImage(
+      bytes: Uint8List.fromList(img.encodePng(photo)),
+      name: 'brush.png',
+    );
+    final strokes = <(List<MaskPoint>, double)>[];
+
+    Widget canvasWithPreview(List<MaskStroke> previews) => MaterialApp(
+      home: Center(
+        child: SizedBox.fromSize(
+          size: const Size(400, 400),
+          child: MaskRefinementCanvas(
+            image: image,
+            showOverlay: false,
+            isEditable: true,
+            brushMode: MaskBrushMode.keep,
+            brushSize: 0.04,
+            onStroke: (points, radius) => strokes.add((points, radius)),
+            pendingPreviewStrokes: previews,
+            enableViewportGestures: true,
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(canvasWithPreview(const []));
+    final canvas = find.byType(MaskRefinementCanvas);
+    await tester.runAsync(() async {
+      await precacheImage(MemoryImage(image.bytes), tester.element(canvas));
+    });
+    await tester.pump();
+    final center = tester.getCenter(canvas);
+
+    await tester.tapAt(center);
+    expect(strokes.single.$2, closeTo(0.04, 1e-6));
+
+    final first = await tester.startGesture(
+      center - const Offset(20, 0),
+      pointer: 21,
+    );
+    final second = await tester.startGesture(
+      center + const Offset(20, 0),
+      pointer: 22,
+    );
+    await first.moveTo(center - const Offset(80, 0));
+    await second.moveTo(center + const Offset(80, 0));
+    await first.up();
+    await second.up();
+    await tester.pump();
+
+    await tester.tapAt(center);
+    expect(strokes.last.$2, closeTo(0.01, 1e-6));
+    expect(strokes.last.$1.single.x, closeTo(0.5, 1e-6));
+
+    await tester.pumpWidget(
+      canvasWithPreview([
+        MaskStroke(
+          mode: MaskBrushMode.keep,
+          points: strokes.last.$1,
+          radius: strokes.last.$2,
+        ),
+      ]),
+    );
+    final clipper = tester.widget<ClipPath>(find.byType(ClipPath)).clipper!;
+    final previewPath = clipper.getClip(const Size(400, 400));
+    expect(previewPath.contains(const Offset(203, 200)), isTrue);
+    expect(previewPath.contains(const Offset(206, 200)), isFalse);
+  });
+
+  testWidgets('fine pending strokes stay connected across distant points', (
+    tester,
+  ) async {
+    final photo = img.Image(width: 40, height: 40);
+    final image = BlurImage(
+      bytes: Uint8List.fromList(img.encodePng(photo)),
+      name: 'line.png',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: SizedBox.fromSize(
+            size: const Size(400, 400),
+            child: MaskRefinementCanvas(
+              image: image,
+              showOverlay: false,
+              isEditable: false,
+              brushMode: MaskBrushMode.keep,
+              brushSize: 0.012,
+              onStroke: (_, _) {},
+              pendingPreviewStrokes: const [
+                MaskStroke(
+                  mode: MaskBrushMode.keep,
+                  points: [MaskPoint(0, 0.5), MaskPoint(1, 0.5)],
+                  radius: 0.001,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.runAsync(() async {
+      await precacheImage(
+        MemoryImage(image.bytes),
+        tester.element(find.byType(MaskRefinementCanvas)),
+      );
+    });
+    await tester.pump();
+
+    final clipper = tester.widget<ClipPath>(find.byType(ClipPath)).clipper!;
+    final previewPath = clipper.getClip(const Size(400, 400));
+    expect(previewPath.contains(const Offset(0, 200)), isTrue);
+    expect(previewPath.contains(const Offset(201.25, 200)), isTrue);
+    expect(previewPath.contains(const Offset(400, 200)), isTrue);
+    expect(previewPath.contains(const Offset(201.25, 201)), isFalse);
+  });
+
+  late BlurImage image;
+  late List<List<MaskPoint>> strokes;
+  late List<bool> viewportChanges;
+
+  setUp(() {
+    image = sampleBlurImage('canvas.png');
+    strokes = [];
+    viewportChanges = [];
+  });
+
+  Future<void> pumpCanvas(
+    WidgetTester tester, {
+    bool editable = true,
+    bool viewportGestures = true,
+    int resetRequest = 0,
+    Size size = const Size(400, 400),
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: SizedBox.fromSize(
+            size: size,
+            child: MaskRefinementCanvas(
+              image: image,
+              showOverlay: false,
+              isEditable: editable,
+              brushMode: MaskBrushMode.keep,
+              brushSize: 0.04,
+              onStroke: (points, _) => strokes.add(points),
+              enableViewportGestures: viewportGestures,
+              resetViewportRequest: resetRequest,
+              onViewportChanged: viewportChanges.add,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.runAsync(() async {
+      await precacheImage(
+        MemoryImage(image.bytes),
+        tester.element(find.byType(MaskRefinementCanvas)),
+      );
+    });
+    await tester.pump();
+  }
+
+  Offset position(WidgetTester tester, Offset local) =>
+      tester.getTopLeft(find.byType(MaskRefinementCanvas)) + local;
+
+  Future<void> transformViewport(
+    WidgetTester tester, {
+    Offset firstStart = const Offset(150, 200),
+    Offset secondStart = const Offset(250, 200),
+    Offset firstEnd = const Offset(100, 200),
+    Offset secondEnd = const Offset(300, 200),
+  }) async {
+    final first = await tester.startGesture(position(tester, firstStart));
+    final second = await tester.startGesture(
+      position(tester, secondStart),
+      pointer: 2,
+    );
+    await first.moveTo(position(tester, firstEnd));
+    await second.moveTo(position(tester, secondEnd));
+    await first.up();
+    await second.up();
+    await tester.pump();
+  }
+
+  void expectViewport(
+    WidgetTester tester, {
+    double scale = 1,
+    Offset offset = Offset.zero,
+  }) {
+    final transform = tester
+        .widget<Transform>(
+          find.descendant(
+            of: find.byType(MaskRefinementCanvas),
+            matching: find.byType(Transform),
+          ),
+        )
+        .transform;
+    expect(transform.entry(0, 0), closeTo(scale, 1e-6));
+    expect(transform.entry(1, 1), closeTo(scale, 1e-6));
+    expect(transform.entry(0, 3), closeTo(offset.dx, 1e-6));
+    expect(transform.entry(1, 3), closeTo(offset.dy, 1e-6));
+  }
+
+  void expectPoint(MaskPoint point, double x, double y) {
+    expect(point.x, closeTo(x, 1e-6));
+    expect(point.y, closeTo(y, 1e-6));
+  }
+
+  testWidgets('one finger emits an ordered stroke only on release', (
+    tester,
+  ) async {
+    await pumpCanvas(tester);
+    final finger = await tester.startGesture(
+      position(tester, const Offset(100, 100)),
+    );
+    await finger.moveTo(position(tester, const Offset(200, 300)));
+    expect(strokes, isEmpty);
+    await finger.up();
+
+    expect(strokes, hasLength(1));
+    expect(strokes.single, hasLength(2));
+    expectPoint(strokes.single.first, 0.25, 0.25);
+    expectPoint(strokes.single.last, 0.5, 0.75);
+    expectViewport(tester);
+    expect(viewportChanges, isEmpty);
+
+    await tester.tapAt(position(tester, const Offset(300, 200)));
+    expect(strokes, hasLength(2));
+    expect(
+      strokes.first,
+      hasLength(2),
+      reason: 'Later gestures must not mutate emitted strokes.',
+    );
+    expectPoint(strokes.last.single, 0.75, 0.5);
+  });
+
+  testWidgets(
+    'letterbox points are ignored and image edges normalize correctly',
+    (tester) async {
+      await pumpCanvas(tester, size: const Size(400, 200));
+      await tester.tapAt(position(tester, const Offset(50, 100)));
+      expect(strokes, isEmpty);
+
+      final finger = await tester.startGesture(
+        position(tester, const Offset(50, 100)),
+      );
+      await finger.moveTo(position(tester, const Offset(100, 0)));
+      await finger.moveTo(position(tester, const Offset(200, 100)));
+      await finger.moveTo(position(tester, const Offset(300, 100)));
+      await finger.up();
+
+      expect(strokes.single, hasLength(2));
+      expectPoint(strokes.single.first, 0, 0);
+      expectPoint(strokes.single.last, 0.5, 0.5);
+    },
+  );
+
+  testWidgets('adding a second finger cancels the draft brush stroke', (
+    tester,
+  ) async {
+    await pumpCanvas(tester);
+    final first = await tester.startGesture(
+      position(tester, const Offset(100, 200)),
+    );
+    await first.moveTo(position(tester, const Offset(150, 200)));
+    final second = await tester.startGesture(
+      position(tester, const Offset(250, 200)),
+      pointer: 2,
+    );
+    await second.moveTo(position(tester, const Offset(350, 200)));
+    await second.up();
+    await first.moveTo(position(tester, const Offset(180, 220)));
+    await first.up();
+    await tester.pump();
+
+    expect(
+      strokes,
+      isEmpty,
+      reason: 'The remaining finger must not resume the cancelled stroke.',
+    );
+    expectViewport(tester, scale: 2, offset: const Offset(50, 0));
+    expect(viewportChanges, [true]);
+
+    await tester.tapAt(position(tester, const Offset(250, 200)));
+    expectPoint(strokes.single.single, 0.5, 0.5);
+  });
+
+  testWidgets('cancelled pointers discard a stroke and allow a fresh stroke', (
+    tester,
+  ) async {
+    await pumpCanvas(tester);
+    final finger = await tester.startGesture(
+      position(tester, const Offset(100, 100)),
+    );
+    await finger.moveTo(position(tester, const Offset(200, 200)));
+    await finger.cancel();
+    expect(strokes, isEmpty);
+
+    await tester.tapAt(position(tester, const Offset(300, 300)));
+    expectPoint(strokes.single.single, 0.75, 0.75);
+  });
+
+  testWidgets('cancelling a pinch never commits either finger as a stroke', (
+    tester,
+  ) async {
+    await pumpCanvas(tester);
+    final first = await tester.startGesture(
+      position(tester, const Offset(150, 200)),
+    );
+    final second = await tester.startGesture(
+      position(tester, const Offset(250, 200)),
+      pointer: 2,
+    );
+    await second.moveTo(position(tester, const Offset(350, 200)));
+    await second.cancel();
+    await first.moveTo(position(tester, const Offset(200, 200)));
+    await first.up();
+    expect(strokes, isEmpty);
+
+    await tester.tapAt(position(tester, const Offset(250, 200)));
+    expectPoint(strokes.single.single, 0.5, 0.5);
+  });
+
+  testWidgets('pinch zoom preserves the off-center focal image point', (
+    tester,
+  ) async {
+    await pumpCanvas(tester);
+    await transformViewport(
+      tester,
+      firstStart: const Offset(50, 150),
+      secondStart: const Offset(150, 150),
+      firstEnd: const Offset(0, 150),
+      secondEnd: const Offset(200, 150),
+    );
+
+    expectViewport(tester, scale: 2, offset: const Offset(100, 50));
+    await tester.tapAt(position(tester, const Offset(100, 150)));
+    expectPoint(strokes.single.single, 0.25, 0.375);
+  });
+
+  testWidgets('brush coordinates account for both zoom and two-finger pan', (
+    tester,
+  ) async {
+    await pumpCanvas(tester);
+    await transformViewport(tester);
+    expectViewport(tester, scale: 2);
+    await transformViewport(
+      tester,
+      firstEnd: const Offset(200, 240),
+      secondEnd: const Offset(300, 240),
+    );
+    expectViewport(tester, scale: 2, offset: const Offset(50, 40));
+
+    final finger = await tester.startGesture(
+      position(tester, const Offset(250, 240)),
+    );
+    await finger.moveTo(position(tester, const Offset(350, 140)));
+    await finger.up();
+    expect(strokes.single, hasLength(2));
+    expectPoint(strokes.single.first, 0.5, 0.5);
+    expectPoint(strokes.single.last, 0.625, 0.375);
+  });
+
+  testWidgets('zoom cannot exceed four times the fitted image', (tester) async {
+    await pumpCanvas(tester);
+    await transformViewport(
+      tester,
+      firstStart: const Offset(190, 200),
+      secondStart: const Offset(210, 200),
+    );
+    expectViewport(tester, scale: 4);
+    expect(strokes, isEmpty);
+  });
+
+  testWidgets(
+    'pinching below fit resets zoom and reports an unmodified viewport',
+    (tester) async {
+      await pumpCanvas(tester);
+      await transformViewport(tester);
+      await transformViewport(
+        tester,
+        firstStart: const Offset(100, 200),
+        secondStart: const Offset(300, 200),
+        firstEnd: const Offset(190, 200),
+        secondEnd: const Offset(210, 200),
+      );
+      expectViewport(tester);
+      expect(viewportChanges.last, isFalse);
+      expect(strokes, isEmpty);
+    },
+  );
+
+  for (final direction in [-1.0, 1.0]) {
+    testWidgets('pan is bounded on both axes in direction $direction', (
+      tester,
+    ) async {
+      await pumpCanvas(tester);
+      await transformViewport(tester);
+      final displacement = Offset(500 * direction, 500 * direction);
+      await transformViewport(
+        tester,
+        firstEnd: const Offset(150, 200) + displacement,
+        secondEnd: const Offset(250, 200) + displacement,
+      );
+      expectViewport(
+        tester,
+        scale: 2,
+        offset: Offset(200 * direction, 200 * direction),
+      );
+      expect(strokes, isEmpty);
+    });
+  }
+
+  testWidgets('unchanged and coincident pointers do not modify the viewport', (
+    tester,
+  ) async {
+    await pumpCanvas(tester);
+    await transformViewport(
+      tester,
+      firstStart: const Offset(200, 200),
+      secondStart: const Offset(200, 200),
+      firstEnd: const Offset(200, 200),
+      secondEnd: const Offset(300, 200),
+    );
+    expectViewport(tester);
+    expect(viewportChanges, isEmpty);
+    expect(strokes, isEmpty);
+  });
+
+  testWidgets('reset requests restore fit without changing brush output', (
+    tester,
+  ) async {
+    await pumpCanvas(tester);
+    await tester.tapAt(position(tester, const Offset(100, 100)));
+    await transformViewport(tester);
+
+    await pumpCanvas(tester);
+    expectViewport(tester, scale: 2, offset: Offset.zero);
+    final notificationsBeforeReset = viewportChanges.length;
+    await pumpCanvas(tester, resetRequest: 1);
+    expectViewport(tester);
+    expect(viewportChanges.skip(notificationsBeforeReset), isEmpty);
+    expect(strokes, hasLength(1));
+    expectPoint(strokes.single.single, 0.25, 0.25);
+
+    await tester.tapAt(position(tester, const Offset(100, 100)));
+    expectPoint(strokes.last.single, 0.25, 0.25);
+    await pumpCanvas(tester, resetRequest: 2);
+    expect(viewportChanges.length, notificationsBeforeReset);
+  });
+
+  testWidgets(
+    'non-editable canvas allows zoom and reset but emits no strokes',
+    (tester) async {
+      await pumpCanvas(tester, editable: false);
+      await tester.dragFrom(
+        position(tester, const Offset(150, 200)),
+        const Offset(50, 0),
+      );
+      await transformViewport(tester);
+      expectViewport(tester, scale: 2);
+      expect(strokes, isEmpty);
+      final notificationsBeforeReset = viewportChanges.length;
+      await pumpCanvas(tester, editable: false, resetRequest: 1);
+      expectViewport(tester);
+      expect(viewportChanges.length, notificationsBeforeReset);
+    },
+  );
+
+  testWidgets('legacy drag still draws when viewport gestures are disabled', (
+    tester,
+  ) async {
+    await pumpCanvas(tester, viewportGestures: false);
+    await tester.dragFrom(
+      position(tester, const Offset(100, 200)),
+      const Offset(100, 0),
+    );
+    expect(strokes, hasLength(1));
+    expectPoint(strokes.single.last, 0.5, 0.5);
+    expectViewport(tester);
+    expect(viewportChanges, isEmpty);
+  });
+
+  testWidgets('disabled editing and viewport gestures ignore all input', (
+    tester,
+  ) async {
+    await pumpCanvas(tester, editable: false, viewportGestures: false);
+    await tester.dragFrom(
+      position(tester, const Offset(100, 200)),
+      const Offset(100, 0),
+    );
+    await transformViewport(tester);
+    expect(strokes, isEmpty);
+    expect(viewportChanges, isEmpty);
+    expectViewport(tester);
+  });
+
+  const viewportSize = Size(390, 600);
+  final cases = [
+    (
+      name: 'narrow portrait',
+      imageSize: const Size(100, 600),
+      limitsAt4x: const Offset(5, 900),
+      limitsAt2x: const Offset(0, 300),
+    ),
+    (
+      name: 'wide landscape',
+      imageSize: const Size(390, 100),
+      limitsAt4x: const Offset(585, 0),
+      limitsAt2x: const Offset(195, 0),
+    ),
+  ];
+
+  for (final scenario in cases) {
+    testWidgets('pan keeps a ${scenario.name} visible at every zoom level', (
+      tester,
+    ) async {
+      final photo = img.Image(
+        width: scenario.imageSize.width.toInt(),
+        height: scenario.imageSize.height.toInt(),
+      );
+      img.fill(photo, color: img.ColorRgb8(60, 180, 140));
+      final image = BlurImage(
+        bytes: Uint8List.fromList(img.encodePng(photo)),
+        name: 'test.png',
+      );
+      final strokes = <List<MaskPoint>>[];
+      final viewportChanges = <bool>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox.fromSize(
+                size: viewportSize,
+                child: MaskRefinementCanvas(
+                  image: image,
+                  showOverlay: false,
+                  isEditable: true,
+                  brushMode: MaskBrushMode.keep,
+                  brushSize: 0.04,
+                  enableViewportGestures: true,
+                  onStroke: (points, _) => strokes.add(points),
+                  onViewportChanged: viewportChanges.add,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final canvas = find.byType(MaskRefinementCanvas);
+      await tester.runAsync(() async {
+        await precacheImage(MemoryImage(image.bytes), tester.element(canvas));
+      });
+      await tester.pumpAndSettle();
+      final transformFinder = find.descendant(
+        of: canvas,
+        matching: find.byType(Transform),
+      );
+      final center = tester.getCenter(canvas);
+      final first = await tester.startGesture(
+        center - const Offset(20, 0),
+        pointer: 21,
+      );
+      final second = await tester.startGesture(
+        center + const Offset(20, 0),
+        pointer: 22,
+      );
+
+      Future<void> expectView(double scale, Offset offset) async {
+        await tester.pump();
+        final matrix = tester.widget<Transform>(transformFinder).transform;
+        expect(matrix.entry(0, 0), closeTo(scale, 0.0001));
+        expect(matrix.entry(0, 3), closeTo(offset.dx, 0.0001));
+        expect(matrix.entry(1, 3), closeTo(offset.dy, 0.0001));
+        final displayedPhoto = Rect.fromCenter(
+          center: viewportSize.center(offset),
+          width: scenario.imageSize.width * scale,
+          height: scenario.imageSize.height * scale,
+        );
+        expect(displayedPhoto.overlaps(Offset.zero & viewportSize), isTrue);
+        expect(strokes, isEmpty);
+        expect(tester.takeException(), isNull);
+      }
+
+      await first.moveTo(center - const Offset(80, 0));
+      await second.moveTo(center + const Offset(80, 0));
+      await expectView(4, Offset.zero);
+
+      await first.moveBy(const Offset(1000, 1000));
+      await second.moveBy(const Offset(1000, 1000));
+      await expectView(4, scenario.limitsAt4x);
+
+      await first.moveBy(const Offset(-2000, -2000));
+      await second.moveBy(const Offset(-2000, -2000));
+      await expectView(4, -scenario.limitsAt4x);
+
+      const pan = Offset(-1000, -1000);
+      await first.moveTo(center + pan - const Offset(40, 0));
+      await second.moveTo(center + pan + const Offset(40, 0));
+      await expectView(2, -scenario.limitsAt2x);
+
+      await first.moveTo(center + pan - const Offset(20, 0));
+      await second.moveTo(center + pan + const Offset(20, 0));
+      await expectView(1, Offset.zero);
+      expect(viewportChanges.last, isFalse);
+      await first.up();
+      await second.up();
+      expect(strokes, isEmpty);
+    });
+  }
+}

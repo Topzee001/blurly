@@ -35,6 +35,9 @@ Features:
 - Use Bokeh mode for a warmer styled background blur.
 - Compare original and blurred previews.
 - Adjust blur intensity from 0% to 100%.
+- Refine difficult edges with Keep sharp and Add blur brushes.
+- Preview, undo, and redo refinement edits before applying them.
+- Adjust edge softness and subject size for a more natural result.
 - Save processed PNG images to your gallery.
 - Share processed images from the app.
 
@@ -48,7 +51,10 @@ better-framed image.
 
 ## What's New
 
-Initial release.
+- Refine subjects with visible Keep sharp and Add blur brush previews.
+- Undo and redo draft edits before applying them together.
+- Improved feedback for long image-processing operations.
+- Tap the empty preview to choose a photo quickly.
 
 ## Graphic Assets
 

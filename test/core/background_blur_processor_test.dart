@@ -72,6 +72,23 @@ void main() {
       expect(mask.getPixel(30, 30).r, 0);
     });
 
+    test('applies a zoom-adjusted brush radius without enlarging it', () {
+      final mask = img.Image(width: 400, height: 400);
+      mask.clear(img.ColorRgb8(0, 0, 0));
+
+      MaskUtils.applyEdits(mask, const [
+        MaskStroke(
+          mode: MaskBrushMode.keep,
+          points: [MaskPoint(0.5, 0.5)],
+          radius: 0.003,
+        ),
+      ]);
+
+      expect(mask.getPixel(200, 200).r, 255);
+      expect(mask.getPixel(201, 200).r, 255);
+      expect(mask.getPixel(202, 200).r, 0);
+    });
+
     test('a blur brush edit changes a protected area after compositing', () {
       final source = img.Image(width: 41, height: 41);
       for (var y = 0; y < source.height; y++) {
