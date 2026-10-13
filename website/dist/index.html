@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#10191b">
+    <meta name="description" content="Blurly puts the focus back where it belongs. Blur backgrounds, refine your subject, and save or share your photos, all on your device.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Blurly | Make the moment stand out">
+    <meta property="og:description" content="A thoughtful background blur editor for Android. Focus on your subject, refine the details, and keep your photos on your device.">
+    <meta property="og:image" content="assets/hero-photo.jpg">
+    <title>Blurly | Make the moment stand out</title>
+    <link rel="icon" href="assets/blurly-icon.png" type="image/png">
+    <link rel="preload" href="assets/hero-photo.jpg" as="image">
+    <link rel="stylesheet" href="styles.css">
+    <script src="main.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header" id="top">
+      <nav class="nav shell" aria-label="Main navigation">
+        <a class="brand" href="#top" aria-label="Blurly home">
+          <img src="assets/blurly-icon.png" alt="" width="36" height="36">
+          <span>Blur<span class="brand-accent">ly</span></span>
+        </a>
+        <button class="nav-toggle" type="button" aria-label="Open menu" aria-controls="nav-links" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <div class="nav-links" id="nav-links">
+          <a href="#experience">The experience</a>
+          <a href="#features">Features</a>
+          <a href="#questions">FAQ</a>
+          <a class="nav-download" href="https://play.google.com/store/apps/details?id=com.topzee.blurly&amp;pcampaignid=web_share" target="_blank" rel="noopener noreferrer">Get the app <span aria-hidden="true">↗</span></a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <img class="hero-photo" src="assets/hero-photo.jpg" alt="Portrait of a woman in focus in front of a softly blurred flower market" width="1672" height="941" fetchpriority="high">
+        <div class="hero-shade" aria-hidden="true"></div>
+        <div class="hero-content shell">
+          <p class="eyebrow hero-eyebrow"><span class="eyebrow-rule" aria-hidden="true"></span> Your moments, in focus</p>
+          <h1 id="hero-title">Blurly<span class="hero-period">.</span></h1>
+          <p class="hero-lead">Make the moment stand out.</p>
+          <p class="hero-copy">Quiet the background. Keep what matters sharp. Give your portraits the attention they deserve, in a few thoughtful taps.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://play.google.com/store/apps/details?id=com.topzee.blurly&amp;pcampaignid=web_share" target="_blank" rel="noopener noreferrer">
+              Get Blurly on Google Play <span aria-hidden="true">↗</span>
+            </a>
+            <a class="text-link light-link" href="#experience">Explore the app <span aria-hidden="true">↓</span></a>
+          </div>
+        </div>
+        <div class="hero-index shell" aria-hidden="true"><span>01 / Focus</span><span>Made for the moments worth keeping</span></div>
+      </section>
+
+      <section class="intro section" id="experience" aria-labelledby="experience-title">
+        <div class="shell intro-grid">
+          <div class="intro-copy">
+            <p class="eyebrow dark-eyebrow">See the difference</p>
+            <h2 id="experience-title">A clearer way to <em>tell the story.</em></h2>
+            <p>One photo can feel completely different when the background steps back. Blurly helps your subject take the lead, then gives you the tools to make the result your own.</p>
+            <div class="intro-note"><span class="note-mark" aria-hidden="true">✦</span><span>Actual before and after captures from the Blurly app.</span></div>
+          </div>
+          <figure class="compare-figure">
+            <div class="comparison" style="--split: 50%">
+              <img class="comparison-before" src="assets/compare-original.jpg" alt="Original portrait shown in Blurly before background blur" width="540" height="1170" loading="lazy">
+              <img class="comparison-after" src="assets/compare-blurred.jpg" alt="Same portrait with its background blurred in Blurly" width="540" height="1170" loading="lazy">
+              <span class="compare-label compare-label-before" aria-hidden="true">Original</span>
+              <span class="compare-label compare-label-after" aria-hidden="true">With Blurly</span>
+              <span class="comparison-divider" aria-hidden="true"><span class="comparison-handle">‹ &nbsp; ›</span></span>
+              <input class="comparison-range" type="range" min="0" max="100" value="50" aria-label="Reveal more or less of the blurred photo">
+            </div>
+            <figcaption>Slide to compare</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="features section" id="features" aria-labelledby="features-title">
+        <div class="shell">
+          <div class="section-heading">
+            <p class="eyebrow dark-eyebrow">Made for your eye</p>
+            <h2 id="features-title">Simple when you want it.<br><em>Precise when you need it.</em></h2>
+          </div>
+          <div class="feature-list">
+            <article class="feature-item">
+              <span class="feature-number">01</span>
+              <div><h3>Find your focus</h3><p>Pick a photo or take a new one. Choose Background, Person, or a warmer Bokeh look, then set the blur intensity that feels right.</p></div>
+              <span class="feature-glyph" aria-hidden="true">◎</span>
+            </article>
+            <article class="feature-item">
+              <span class="feature-number">02</span>
+              <div><h3>Refine the details</h3><p>Use Keep sharp and Add blur brushes to correct tricky edges. Zoom in, adjust feathering and subject size, and apply the changes together.</p></div>
+              <span class="feature-glyph" aria-hidden="true">✳</span>
+            </article>
+            <article class="feature-item">
+              <span class="feature-number">03</span>
+              <div><h3>Take it with you</h3><p>Compare the original, save a finished photo to your gallery, or share it straight from Blurly.</p></div>
+              <span class="feature-glyph" aria-hidden="true">↗</span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screens section" aria-labelledby="screens-title">
+        <div class="shell">
+          <div class="screens-heading">
+            <div><p class="eyebrow mint-eyebrow">Inside the app</p><h2 id="screens-title">Every detail counts.</h2></div>
+            <p>Make the first pass quickly. Slow down for the edges. Blurly moves at your pace.</p>
+          </div>
+          <div class="screens-gallery" aria-label="Blurly app screenshots">
+            <figure><img src="assets/screen-background.png" width="1080" height="1920" alt="Blurly background mode with a portrait and blur intensity control" loading="lazy"><figcaption>01 / Background blur</figcaption></figure>
+            <figure><img src="assets/screen-refine.png" width="1080" height="1920" alt="Blurly Refine subject editor showing Keep sharp and Add blur tools" loading="lazy"><figcaption>02 / Refine subject</figcaption></figure>
+            <figure><img src="assets/screen-bokeh.png" width="1080" height="1920" alt="Blurly Bokeh mode with portrait-style blur" loading="lazy"><figcaption>03 / Bokeh look</figcaption></figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="privacy section" aria-labelledby="privacy-title">
+        <div class="shell privacy-grid">
+          <div><p class="eyebrow dark-eyebrow">Your photo stays yours</p><h2 id="privacy-title">Create freely.<br><em>Keep it private.</em></h2></div>
+          <div class="privacy-copy"><p>Blurly processes your photos on your device. There is no account to create and no photo-processing server. Your images leave your device only when you choose to share them.</p><a class="text-link dark-link" href="privacy.html">Read the privacy policy <span aria-hidden="true">↗</span></a></div>
+        </div>
+      </section>
+
+      <section class="faq section" id="questions" aria-labelledby="questions-title">
+        <div class="shell faq-grid">
+          <div class="faq-heading"><p class="eyebrow dark-eyebrow">Good to know</p><h2 id="questions-title">A few quick answers.</h2><p>Everything you need before making your first edit.</p></div>
+          <div class="faq-items">
+            <details><summary>Which photos work best?<span aria-hidden="true">+</span></summary><p>Blurly is especially suited to portraits and photos of people. The current subject model is trained for people, so other objects and difficult edges can need a little brush refinement.</p></details>
+            <details><summary>Can I control what stays sharp?<span aria-hidden="true">+</span></summary><p>Yes. In Refine subject, use Keep sharp and Add blur brushes, then adjust edge softness and subject size before applying your changes.</p></details>
+            <details><summary>Do my photos get uploaded?<span aria-hidden="true">+</span></summary><p>No. Photo processing happens on your device. You choose when to save or share a finished image.</p></details>
+            <details><summary>Where can I get Blurly?<span aria-hidden="true">+</span></summary><p>Blurly is available on <a href="https://play.google.com/store/apps/details?id=com.topzee.blurly&amp;pcampaignid=web_share" target="_blank" rel="noopener noreferrer">Google Play</a> for Android. You can also explore the open-source project on <a href="https://github.com/Topzee001/blurly" target="_blank" rel="noopener noreferrer">GitHub</a>.</p></details>
+          </div>
+        </div>
+      </section>
+
+      <section class="closing" aria-labelledby="closing-title">
+        <div class="shell closing-content"><p class="eyebrow mint-eyebrow">Ready when you are</p><h2 id="closing-title">Let the moment<br><em>take focus.</em></h2><a class="button button-primary" href="https://play.google.com/store/apps/details?id=com.topzee.blurly&amp;pcampaignid=web_share" target="_blank" rel="noopener noreferrer">Get Blurly on Google Play <span aria-hidden="true">↗</span></a></div>
+      </section>
+    </main>
+
+    <footer class="site-footer"><div class="shell footer-main"><div><a class="brand footer-brand" href="#top" aria-label="Blurly home"><img src="assets/blurly-icon.png" alt="" width="34" height="34"><span>Blur<span class="brand-accent">ly</span></span></a><p>A little less distraction. A lot more focus.</p></div><div class="footer-links"><a href="#features">Features</a><a href="#questions">FAQ</a><a href="privacy.html">Privacy</a><a href="https://github.com/Topzee001/blurly" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div></div><div class="shell footer-bottom"><span>© 2026 Blurly</span><span>Made for the photos that matter.</span></div></footer>
+  </body>
+</html>

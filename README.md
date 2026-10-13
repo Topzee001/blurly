@@ -99,6 +99,21 @@ flutter pub get
 flutter run
 ```
 
+## Website
+
+The standalone landing page is in [website/](website/README.md). It is plain
+HTML, CSS, and JavaScript, separate from the Flutter app. To run it locally
+from the repository root:
+
+```sh
+cd website/dist
+python3 -m http.server 4173 --bind 127.0.0.1
+```
+
+Open [http://127.0.0.1:4173/](http://127.0.0.1:4173/) in your browser. Press
+`Ctrl+C` in the server terminal to stop it. See the website README for Vercel
+deployment steps.
+
 The bundled model lives at:
 
 ```text
