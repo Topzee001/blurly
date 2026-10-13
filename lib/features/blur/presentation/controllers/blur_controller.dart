@@ -201,14 +201,14 @@ class BlurController extends StateNotifier<BlurState> {
     );
   }
 
-  void addMaskStroke(List<MaskPoint> points) {
+  void addMaskStroke(List<MaskPoint> points, {double? radius}) {
     if (points.isEmpty || state.selectedImage == null) {
       return;
     }
     final stroke = MaskStroke(
       mode: state.brushMode,
       points: List.unmodifiable(points),
-      radius: state.brushSize,
+      radius: radius ?? state.brushSize,
     );
     state = state.copyWith(
       maskEdits: [...state.maskEdits, stroke],

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:blurly/features/blur/domain/entities/blur_image.dart';
+import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
 import 'package:blurly/features/blur/presentation/controllers/blur_providers.dart';
 import 'package:blurly/features/blur/presentation/pages/blur_page.dart';
 import 'package:blurly/features/blur/presentation/widgets/mask_refinement_canvas.dart';
@@ -190,6 +191,66 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byKey(const ValueKey('maskRefinementEditor')), findsNothing);
+  });
+
+  testWidgets('zoomed brush edits keep their fine radius through Apply', (
+    tester,
+  ) async {
+    final repository = await pumpBlurPage(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(BlurPage)),
+    );
+    final controller = container.read(blurControllerProvider.notifier);
+    await tester.tap(find.byKey(const ValueKey('pickButton')));
+    await tester.pumpAndSettle();
+    controller.updateBrushSize(0.012);
+    await tester.runAsync(() async {
+      await precacheImage(
+        MemoryImage(repository.processedImage.bytes),
+        tester.element(find.byType(BlurPage)),
+      );
+    });
+    await tester.tap(find.byKey(const ValueKey('openMaskRefinement')));
+    await tester.pumpAndSettle();
+
+    final center = tester.getCenter(find.byType(MaskRefinementCanvas));
+    final first = await tester.startGesture(
+      center - const Offset(20, 0),
+      pointer: 21,
+    );
+    final second = await tester.startGesture(
+      center + const Offset(20, 0),
+      pointer: 22,
+    );
+    await first.moveTo(center - const Offset(80, 0));
+    await second.moveTo(center + const Offset(80, 0));
+    await first.up();
+    await second.up();
+    await tester.pump();
+
+    controller.setBrushMode(MaskBrushMode.blur);
+    await tester.tapAt(center);
+    controller.setBrushMode(MaskBrushMode.keep);
+    await tester.tapAt(center + const Offset(20, 0));
+    await tester.pump();
+
+    final edits = container.read(blurControllerProvider).maskEdits;
+    expect(edits.map((edit) => edit.mode), [
+      MaskBrushMode.blur,
+      MaskBrushMode.keep,
+    ]);
+    for (final edit in edits) {
+      expect(edit.radius, closeTo(0.003, 1e-6));
+    }
+    expect(repository.processCount, 1);
+
+    await tester.tap(find.byKey(const ValueKey('finishMaskRefinement')));
+    await tester.pumpAndSettle();
+    expect(repository.processCount, 2);
+    expect(repository.lastOptions?.maskEdits, hasLength(2));
+    for (final edit in repository.lastOptions!.maskEdits) {
+      expect(edit.radius, closeTo(0.003, 1e-6));
+    }
   });
 
   testWidgets('system back cancels mask refinement', (tester) async {

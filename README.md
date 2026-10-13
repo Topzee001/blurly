@@ -67,8 +67,8 @@ until you tap **Apply**. Blurly then replays all refinements together in the
 background isolate, so a single stroke never interrupts your work. Edits can
 be undone, redone, cancelled, or applied; every pending brush stroke remains
 visible in the editor before processing begins. Pinch to zoom and drag with
-two fingers to pan around detailed edges; use the fit-to-screen control to
-return to the full photo.
+two fingers to pan around detailed edges. Brush width stays the same on screen
+while zoomed in; use the fit-to-screen control to return to the full photo.
 
 ## What Needs Work
 

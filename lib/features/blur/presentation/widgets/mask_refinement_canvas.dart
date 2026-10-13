@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 class MaskRefinementCanvas extends StatefulWidget {
   /// Creates an image preview with optional mask overlays and brush editing.
   ///
-  /// [brushSize] is a radius relative to the displayed image's shortest side;
-  /// [onStroke] receives completed strokes in normalized image coordinates.
+  /// [brushSize] is a radius relative to the fitted image's shortest side;
+  /// [onStroke] receives normalized points and the radius at the current zoom.
   /// [enableViewportGestures] allows zooming from 1x to 4x and panning with two
   /// pointers, even when [isEditable] is false. A second pointer cancels the
   /// current brush stroke. Changing [resetViewportRequest] restores the fitted
@@ -39,7 +39,7 @@ class MaskRefinementCanvas extends StatefulWidget {
   final bool isEditable;
   final MaskBrushMode brushMode;
   final double brushSize;
-  final ValueChanged<List<MaskPoint>> onStroke;
+  final void Function(List<MaskPoint> points, double radius) onStroke;
 
   /// The untouched photo is revealed within draft Keep sharp strokes.
   final BlurImage? originalImage;
@@ -187,7 +187,7 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
                   child: CustomPaint(
                     painter: _MaskStrokePainter(
                       activeStroke: _activeStroke,
-                      radius: widget.brushSize,
+                      radius: widget.brushSize / _viewportScale,
                       activeMode: widget.brushMode,
                     ),
                   ),
@@ -449,7 +449,10 @@ class _MaskRefinementCanvasState extends State<MaskRefinementCanvas> {
 
   void _finishStroke() {
     if (_activeStroke.isNotEmpty) {
-      widget.onStroke(List.of(_activeStroke));
+      widget.onStroke(
+        List.of(_activeStroke),
+        widget.brushSize / _viewportScale,
+      );
     }
     if (mounted) {
       setState(_activeStroke.clear);
@@ -505,7 +508,7 @@ class _MaskStrokeClipper extends CustomClipper<Path> {
       return Path();
     }
 
-    final radius = stroke.radius.clamp(0.012, 0.08) * size.shortestSide;
+    final radius = stroke.radius.clamp(0.001, 0.12) * size.shortestSide;
     final path = Path();
 
     void addCircle(Offset center) {
@@ -519,11 +522,18 @@ class _MaskStrokeClipper extends CustomClipper<Path> {
     addCircle(previous);
     for (final point in points.skip(1)) {
       final current = toOffset(point);
-      final distance = (current - previous).distance;
-      final steps = (distance / (radius * 0.55)).ceil().clamp(1, 160);
-      for (var index = 1; index <= steps; index++) {
-        addCircle(Offset.lerp(previous, current, index / steps)!);
+      final delta = current - previous;
+      final distance = delta.distance;
+      if (distance > 0) {
+        final normal = Offset(-delta.dy, delta.dx) * (radius / distance);
+        path.addPolygon([
+          previous - normal,
+          current - normal,
+          current + normal,
+          previous + normal,
+        ], true);
       }
+      addCircle(current);
       previous = current;
     }
     return path;

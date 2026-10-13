@@ -111,7 +111,8 @@ class _MaskRefinementEditorState extends ConsumerState<MaskRefinementEditor> {
                                 pendingPreviewStrokes:
                                     state.pendingMaskPreviewStrokes,
                                 previewBlurSigma: 5 + state.blurAmount * 0.35,
-                                onStroke: controller.addMaskStroke,
+                                onStroke: (points, radius) => controller
+                                    .addMaskStroke(points, radius: radius),
                                 enableViewportGestures: true,
                                 resetViewportRequest: _resetViewportRequest,
                                 onViewportChanged: _onViewportChanged,
