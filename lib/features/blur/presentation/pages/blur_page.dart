@@ -7,7 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class BlurPage extends ConsumerWidget {
-  const BlurPage({super.key});
+  final TextEditingController testController;
+
+  const BlurPage({super.key, required this.testController});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

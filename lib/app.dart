@@ -18,7 +18,9 @@ class BlurlyApp extends ConsumerWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
-      home: const IncomingSharedListener(child: BlurPage()),
+      home: IncomingSharedListener(
+        child: BlurPage(testController: TextEditingController()),
+      ),
     );
   }
 }

@@ -20,7 +20,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [blurRepositoryProvider.overrideWithValue(fake)],
-        child: const MaterialApp(home: BlurPage()),
+        child: MaterialApp(
+          home: BlurPage(testController: TextEditingController()),
+        ),
       ),
     );
     return fake;
