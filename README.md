@@ -119,14 +119,20 @@ Open [http://127.0.0.1:4173/](http://127.0.0.1:4173/) in your browser. Press
 `Ctrl+C` in the server terminal to stop it. See the website README for Vercel
 deployment steps.
 
+The [marketing-video/](marketing-video/README.md) project contains the source
+for the short Blurly demo. Its rendered MP4 is kept out of Git and can be
+exported locally using the commands in that README.
+
 The bundled model lives at:
 
 ```text
 assets/models/selfie_segmenter.tflite
 ```
 
-Android and iOS camera/photo permissions are already declared. iOS uses
-`platform :ios, '13.0'` in `ios/Podfile`.
+Android uses a system picker without broad photo-library permission. Camera
+permission is declared for capture, and Android 9 and earlier may request
+legacy write access when saving. iOS camera/photo permissions are declared;
+iOS uses `platform :ios, '13.0'` in `ios/Podfile`.
 
 ## Tests
 
