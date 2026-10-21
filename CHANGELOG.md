@@ -17,6 +17,8 @@ All notable changes to Blurly will be documented in this file.
 
 ### Experience and sharing
 
+- Switched Android photo selection to a system picker without broad media-read
+  permission.
 - Added direct image receiving from the system share sheet.
 - Made the empty image preview open the gallery picker.
 - Added light and dark themes and refreshed the app wordmark and action layout.

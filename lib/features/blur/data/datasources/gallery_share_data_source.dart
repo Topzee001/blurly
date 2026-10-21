@@ -11,7 +11,9 @@ class GalleryShareDataSource {
   const GalleryShareDataSource();
 
   Future<String> saveToGallery(BlurImage image) async {
-    await _requestSavePermission();
+    if (Platform.isIOS) {
+      await _requestSavePermission();
+    }
     final file = await _writeTempPng(image);
     final saved = await GallerySaver.saveImage(
       file.path,

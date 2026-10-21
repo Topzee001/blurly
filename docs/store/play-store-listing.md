@@ -152,7 +152,8 @@ Suggested answers, assuming the app remains a general photo utility:
 
 Use this wording if Play Console asks why permissions are needed:
 
-Blurly uses camera and photo/media permissions so users can choose or capture a
-photo, process it locally, and save the edited result. Blurly uses internet
-permission only to check for and download app updates through Shorebird. Photos
-are not uploaded to a server.
+Blurly uses the Android system picker to choose a photo without broad photo or
+video access. Camera permission is used only to capture a photo. On Android 9
+and earlier, saving an edited image may require legacy write-storage access.
+Blurly uses internet permission only to check for and download app updates
+through Shorebird. Photos are processed locally and are not uploaded to a server.

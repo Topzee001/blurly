@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: October 6, 2026
+Last updated: October 21, 2026
 
 Blurly is an on-device photo editing app for Android and iOS. It lets you pick,
 capture, receive, blur, save, and share images from your device.
@@ -13,7 +13,10 @@ or a photo-processing backend.
 
 ## Photos And Camera
 
-Blurly may ask for camera and photo/media permissions so you can:
+Blurly may ask for camera permission to take a photo. On Android, selecting a
+photo uses a system picker and does not require broad access to your library.
+Saving may require storage permission on Android 9 and earlier. On iOS, the app
+may request photo-library access to save an image. You can:
 
 - Pick a photo from your device.
 - Take a photo with your camera.

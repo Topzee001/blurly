@@ -12,7 +12,6 @@ class ImagePickerDataSource {
   final ImagePicker _imagePicker;
 
   Future<BlurImage?> pickFromGallery() async {
-    await _requestPhotosPermission();
     final image = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 100,
@@ -40,13 +39,5 @@ class ImagePickerDataSource {
       path: file.path,
       name: p.basename(file.path.isEmpty ? file.name : file.path),
     );
-  }
-
-  Future<void> _requestPhotosPermission() async {
-    final photos = await Permission.photos.request();
-    if (photos.isGranted || photos.isLimited) {
-      return;
-    }
-    await Permission.storage.request();
   }
 }
