@@ -16,7 +16,7 @@ import '../../../fakes/fake_blur_repository.dart';
 
 void main() {
   BlurController buildController(FakeBlurRepository repository) {
-    return BlurController(
+    final controller = BlurController(
       pickImage: PickImage(repository),
       takePhoto: TakePhoto(repository),
       processBlurImage: ProcessBlurImage(repository),
@@ -24,7 +24,68 @@ void main() {
       shareBlurredImage: ShareBlurredImage(repository),
       sliderDebouncer: Debouncer(Duration.zero),
     );
+    addTearDown(controller.dispose);
+    return controller;
   }
+
+  test('cancelling the picker preserves the last processed image', () async {
+    final repository = _CancellablePickerStub();
+    final controller = buildController(repository);
+    await controller.pickImage();
+    final previousImage = controller.state.processedImage;
+
+    repository.cancel = true;
+    await controller.pickImage();
+
+    expect(controller.state.processedImage, same(previousImage));
+    expect(repository.processCount, 1);
+    expect(controller.state.errorMessage, isNull);
+    expect(controller.state.isProcessing, isFalse);
+  });
+
+  test('processing failure stops loading and allows a retry', () async {
+    final failure = Completer<BlurImage>();
+    final repository = FakeBlurRepository(processCompleter: failure);
+    final controller = buildController(repository);
+
+    final picking = controller.pickImage();
+    await Future<void>.delayed(Duration.zero);
+    failure.completeError(const FormatException('Unsupported image format.'));
+    await picking;
+
+    expect(controller.state.isProcessing, isFalse);
+    expect(controller.state.canExport, isFalse);
+    expect(
+      controller.state.errorMessage,
+      contains('Unsupported image format.'),
+    );
+
+    repository.processCompleter = null;
+    await controller.processSelectedImage();
+
+    expect(controller.state.canExport, isTrue);
+    expect(controller.state.errorMessage, isNull);
+    expect(repository.processCount, 2);
+  });
+
+  test('save failure keeps the processed image available for retry', () async {
+    final repository = _FailingSaveStub();
+    final controller = buildController(repository);
+    await controller.pickImage();
+    final processedImage = controller.state.processedImage;
+
+    await controller.saveImage();
+
+    expect(controller.state.errorMessage, 'Gallery permission denied.');
+    expect(controller.state.successMessage, isNull);
+    expect(controller.state.processedImage, same(processedImage));
+    expect(controller.state.canExport, isTrue);
+
+    repository.failSave = false;
+    await controller.saveImage();
+    expect(controller.state.errorMessage, isNull);
+    expect(controller.state.successMessage, 'Saved to gallery.');
+  });
 
   test('moves through image selection and processing states', () async {
     final completer = Completer<BlurImage>();
@@ -189,4 +250,25 @@ void main() {
       expect(controller.state.maskEdits, isEmpty);
     },
   );
+}
+
+// Stubs supply a specific boundary response. The shared fake still provides
+// working in-memory behavior for the rest of each scenario.
+class _CancellablePickerStub extends FakeBlurRepository {
+  bool cancel = false;
+
+  @override
+  Future<BlurImage?> pickImageFromGallery() async {
+    return cancel ? null : super.pickImageFromGallery();
+  }
+}
+
+class _FailingSaveStub extends FakeBlurRepository {
+  bool failSave = true;
+
+  @override
+  Future<String> saveToGallery(BlurImage image) async {
+    if (failSave) throw Exception('Gallery permission denied.');
+    return super.saveToGallery(image);
+  }
 }

@@ -90,7 +90,7 @@ This repository was built and tested with:
 
 - Flutter `3.41.2`
 - Dart `3.11.0`
-- Android minSdk `23`
+- Android minSdk `24`
 - iOS `13.0+`
 
 The dependency set currently requires Flutter `>=3.38.1` because of
@@ -132,13 +132,19 @@ Android and iOS camera/photo permissions are already declared. iOS uses
 
 ```sh
 flutter analyze
-flutter test
-flutter test integration_test
+flutter test --coverage
+flutter test integration_test -d <device-id>
 ```
 
-The integration test uses a fake repository so it validates the full UI flow
-without opening native gallery/camera UI. On a fresh iOS setup, CocoaPods may
-need to download TensorFlow Lite pods before the integration runner starts.
+Unit and widget tests run under `test/`, including light/dark golden baselines.
+The device tests cover a UI flow with a fake repository and a real TFLite/isolate
+pipeline with controlled picker/save boundaries. On a fresh iOS setup, CocoaPods
+may need to download TensorFlow Lite pods before the integration runner starts.
+
+For the conference rehearsal, environment strategy, test doubles, Codemagic YAML
+walkthrough and signing troubleshooting, follow the
+[release workflow lab](docs/release-workflow.md). Start with `android-debug` for
+a downloadable APK that needs no release credentials.
 
 ## Architecture
 

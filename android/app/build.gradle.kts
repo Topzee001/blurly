@@ -63,13 +63,6 @@ android {
 
     buildTypes {
         release {
-            if (System.getenv("CI") == "true" && !hasReleaseSigning) {
-                throw GradleException(
-                    "Missing Android release signing. Upload the Codemagic keystore " +
-                        "or provide android/key.properties locally.",
-                )
-            }
-
             signingConfig =
                 if (hasReleaseSigning) {
                     signingConfigs.getByName("release")
@@ -77,6 +70,20 @@ android {
                     signingConfigs.getByName("debug")
                 }
         }
+    }
+}
+
+// Gradle configures release variants even for debug builds. Check signing only
+// when a release task is actually requested, so CI can run debug device tests.
+gradle.taskGraph.whenReady {
+    val buildsRelease = allTasks.any {
+        it.project == project && it.name.endsWith("Release")
+    }
+    if (System.getenv("CI") == "true" && buildsRelease && !hasReleaseSigning) {
+        throw GradleException(
+            "Missing Android release signing. Upload the Codemagic keystore " +
+                "or provide android/key.properties locally.",
+        )
     }
 }
 

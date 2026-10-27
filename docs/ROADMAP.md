@@ -51,3 +51,18 @@ background, even when the subject is not a person.
 - Add privacy review for any telemetry.
 - Add device performance benchmarks.
 - Add Play Store and App Store metadata drafts.
+
+## Later: In-App Updates and Product Discovery
+
+- Add a dismissible What's new view after an app update, with short demos of
+  useful editing features and a way to reopen it from the app.
+- Plan contextual feature discovery, feedback, and sharing prompts that do not
+  interrupt image editing or require an account.
+- Evaluate Google Play in-app updates, including flexible update downloads,
+  user-controlled installation, and offline/error handling.
+- Build on the existing Shorebird/Codemagic release and patch setup when
+  designing the in-app update experience. Plan release/patch visibility and
+  recovery behavior without duplicating the existing deployment workflows;
+  keep store-release requirements distinct from eligible Dart patches.
+- Keep these items planned for a later release; the current marketing work is
+  focused on demonstrating the existing Android app and its refinement tools.
