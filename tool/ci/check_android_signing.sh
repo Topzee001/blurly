@@ -30,6 +30,7 @@ if ! keytool -importkeystore \
   -destkeystore "$signing_check_dir/check.p12" \
   -deststoretype PKCS12 \
   -deststorepass:env CM_KEYSTORE_PASSWORD \
+  -destkeypass:env CM_KEYSTORE_PASSWORD \
   -noprompt \
   >"$signing_check_dir/keytool.log" 2>&1; then
   # keytool writes some failures to stdout. Preserve the actual diagnostic.

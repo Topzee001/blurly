@@ -35,12 +35,25 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byKey(const ValueKey('pickButton')));
-      await tester.pumpAndSettle(const Duration(milliseconds: 100));
-
       final container = ProviderScope.containerOf(
         tester.element(find.byType(BlurPage)),
       );
+      await tester.tap(find.byKey(const ValueKey('pickButton')));
+      await tester.pump();
+
+      final deadline = DateTime.now().add(const Duration(seconds: 60));
+      while (true) {
+        final current = container.read(blurControllerProvider);
+        if (!current.isProcessing || current.errorMessage != null) {
+          break;
+        }
+        if (DateTime.now().isAfter(deadline)) {
+          fail('Timed out waiting for image processing to complete.');
+        }
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.pumpAndSettle();
+
       final state = container.read(blurControllerProvider);
       expect(state.errorMessage, isNull);
       expect(state.canExport, isTrue);
