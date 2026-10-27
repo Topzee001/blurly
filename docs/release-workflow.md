@@ -96,6 +96,12 @@ flutter devices
 flutter test integration_test -d <android-device-id>
 ```
 
+If `--enforce-lockfile` reports that it would change dependencies, the lockfile
+was generated with a different Flutter/Dart toolchain. Select Flutter 3.41.2,
+run `flutter pub get` once without `--enforce-lockfile`, review the resulting
+`pubspec.lock` diff, and then rerun the enforced command. Do not fix this by
+removing the lockfile or by relaxing CI's enforcement.
+
 `flutter test` runs files under `test/`; it does not run `integration_test/`.
 `--coverage` writes `coverage/lcov.info`. Coverage identifies unexercised code;
 we do not treat a percentage as proof of release readiness.
