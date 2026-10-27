@@ -13,6 +13,24 @@ import '../fakes/fake_blur_repository.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  // Text and icon rasterization can differ by a small number of pixels between
+  // macOS hosts (for example, local Apple Silicon versus a hosted runner).
+  // Keep local runs pixel-exact, but allow that host-level noise in CI. A 0.5%
+  // threshold is intentionally small: a real visual change should still
+  // produce a substantially larger diff.
+  final previousGoldenComparator = goldenFileComparator;
+  setUpAll(() {
+    goldenFileComparator = _TolerantGoldenFileComparator(
+      Uri.file(
+        File('test/goldens/blur_page_golden_test.dart').absolute.path,
+      ),
+      precisionTolerance: Platform.environment['CI'] == 'true' ? 0.005 : 0,
+    );
+  });
+  tearDownAll(() {
+    goldenFileComparator = previousGoldenComparator;
+  });
+
   setUpAll(() async {
     // Bundle fixed test fonts so a reviewer sees readable text, independent
     // of whichever fonts happen to be installed on the CI machine.
@@ -76,5 +94,36 @@ void main() {
         matchesGoldenFile('baselines/blur_page_${brightness.name}.png'),
       );
     });
+  }
+}
+
+class _TolerantGoldenFileComparator extends LocalFileComparator {
+  _TolerantGoldenFileComparator(
+    super.testFile, {
+    required double precisionTolerance,
+  }) : assert(
+         precisionTolerance >= 0 && precisionTolerance <= 1,
+         'precisionTolerance must be between 0 and 1',
+       ),
+       _precisionTolerance = precisionTolerance;
+
+  final double _precisionTolerance;
+
+  @override
+  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
+    final result = await GoldenFileComparator.compareLists(
+      imageBytes,
+      await getGoldenBytes(golden),
+    );
+
+    final passed = result.passed || result.diffPercent <= _precisionTolerance;
+    if (passed) {
+      result.dispose();
+      return true;
+    }
+
+    final error = await generateFailureOutput(result, golden, basedir);
+    result.dispose();
+    throw FlutterError(error);
   }
 }

@@ -118,8 +118,10 @@ flutter test test/goldens
 
 Open the changed PNGs before committing them. If the change was unintended,
 fix the UI. If intended, commit the reviewed PNGs with the UI change. CI only
-compares; it never regenerates baselines. A failed comparison writes expected,
-actual and difference PNGs under `test/goldens/failures/`.
+compares; it never regenerates baselines. Local comparisons remain pixel-exact;
+CI allows only a 0.5% pixel-difference threshold for host-level text/icon
+rasterization noise. A failed comparison writes expected, actual and difference
+PNGs under `test/goldens/failures/`.
 
 ## 4. Read codemagic.yaml as a recipe
 
