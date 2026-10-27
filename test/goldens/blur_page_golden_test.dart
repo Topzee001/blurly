@@ -21,9 +21,7 @@ void main() {
   final previousGoldenComparator = goldenFileComparator;
   setUpAll(() {
     goldenFileComparator = _TolerantGoldenFileComparator(
-      Uri.file(
-        File('test/goldens/blur_page_golden_test.dart').absolute.path,
-      ),
+      Uri.file(File('test/goldens/blur_page_golden_test.dart').absolute.path),
       precisionTolerance: Platform.environment['CI'] == 'true' ? 0.005 : 0,
     );
   });
