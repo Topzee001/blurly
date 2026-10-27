@@ -1,82 +1,130 @@
+# See docs/release-workflow.md for a walkthrough and the rehearsal order.
 definitions:
   environment:
+    flutter_env: &flutter_env
+      flutter: "3.41.2"
+      java: 17
+      vars: &flutter_vars
+        FLUTTER_VERSION: "3.41.2"
+
     android_shorebird_env: &android_shorebird_env
-      flutter: 3.41.2
+      <<: *flutter_env
       groups:
         - shorebird
-      vars:
-        FLUTTER_VERSION: 3.41.2
 
     android_play_env: &android_play_env
-      flutter: 3.41.2
+      <<: *flutter_env
       groups:
         - shorebird
         - play_store
-      vars:
-        FLUTTER_VERSION: 3.41.2
+
+  cache: &flutter_cache
+    cache_paths:
+      - ~/.pub-cache
+      - ~/.gradle/caches
+      - ~/.gradle/wrapper
+
+  artifacts: &verification_artifacts
+    - test-results/**
+    - coverage/lcov.info
+    - test/**/failures/*.png
 
   scripts:
     - &install_shorebird
       name: Install Shorebird
       script: |
+        set -euo pipefail
+        : "${SHOREBIRD_TOKEN:?Set a current Shorebird API key in the shorebird group.}"
         curl --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh -sSf | bash
         echo PATH="$HOME/.shorebird/bin:$PATH" >> "$CM_ENV"
 
     - &fetch_dependencies
       name: Fetch dependencies
       script: |
+        set -euo pipefail
         flutter config --enable-swift-package-manager
-        flutter pub get
+        flutter pub get --enforce-lockfile
 
     - &verify_flutter
-      name: Verify Flutter project
+      name: Format, analyze, unit, widget and golden tests
       script: |
+        set -euo pipefail
+        mkdir -p test-results
         dart format --output=none --set-exit-if-changed lib test integration_test
-        flutter analyze
-        flutter test
+        flutter analyze --no-pub
+        flutter test --no-pub --coverage --concurrency=2 --machine | tee test-results/flutter.json
+      test_report: test-results/flutter.json
 
     - &verify_android_signing
       name: Verify Android signing identity
-      script: |
-        set -e
-
-        : "${CM_KEYSTORE_PATH:?Upload the Android keystore to Codemagic with reference blurly_upload_keystore.}"
-        : "${CM_KEYSTORE_PASSWORD:?Set the keystore password on the Codemagic Android signing identity.}"
-        : "${CM_KEY_ALIAS:?Set the key alias on the Codemagic Android signing identity.}"
-        : "${CM_KEY_PASSWORD:?Set the key password on the Codemagic Android signing identity.}"
-
-        keytool -list \
-          -keystore "$CM_KEYSTORE_PATH" \
-          -storepass "$CM_KEYSTORE_PASSWORD" \
-          -alias "$CM_KEY_ALIAS" \
-          >/dev/null
-
-        signing_check_file="$CM_BUILD_DIR/signing-check.p12"
-        rm -f "$signing_check_file"
-
-        if ! keytool -importkeystore \
-          -srckeystore "$CM_KEYSTORE_PATH" \
-          -srcstorepass "$CM_KEYSTORE_PASSWORD" \
-          -srcalias "$CM_KEY_ALIAS" \
-          -srckeypass "$CM_KEY_PASSWORD" \
-          -destkeystore "$signing_check_file" \
-          -deststoretype PKCS12 \
-          -deststorepass "$CM_KEYSTORE_PASSWORD" \
-          -destkeypass "$CM_KEY_PASSWORD" \
-          -noprompt \
-          >/dev/null; then
-          echo "Could not recover the Android signing key."
-          echo "In Codemagic, edit the blurly_upload_keystore signing identity and confirm:"
-          echo "- Keystore password is the store password used when the .jks was created."
-          echo "- Key alias is exactly: blurly"
-          echo "- Key password is the alias/key password, often the same as the store password."
-          exit 1
-        fi
-
-        rm -f "$signing_check_file"
-        echo "Android signing identity is readable."
+      script: bash tool/ci/check_android_signing.sh
 
 workflows:
+  flutter-checks:
+    name: Flutter quality checks
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment: *flutter_env
+    cache: *flutter_cache
+    triggering:
+      events:
+        - pull_request
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: false
+        - pattern: development
+          include: true
+          source: false
+      cancel_previous_builds: true
+    scripts:
+      - *fetch_dependencies
+      - *verify_flutter
+    artifacts: *verification_artifacts
+
+  android-debug:
+    name: Android development APK (no release credentials)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment: *flutter_env
+    cache: *flutter_cache
+    scripts:
+      - *fetch_dependencies
+      - *verify_flutter
+      - name: Build an installable debug APK
+        script: flutter build apk --debug --no-pub
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - test-results/**
+      - coverage/lcov.info
+      - test/**/failures/*.png
+
+  # Android emulators need Linux virtualization. Apple silicon Codemagic
+  # runners cannot run them. linux_x2 requires billing enabled on Codemagic.
+  android-integration:
+    name: Android device integration tests
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment: *flutter_env
+    cache: *flutter_cache
+    scripts:
+      - *fetch_dependencies
+      - name: Run UI flow and real TFLite pipeline on Android
+        script: bash tool/ci/android_integration.sh
+        test_report: test-results/integration.json
+    artifacts: *verification_artifacts
+
+  android-signing-check:
+    name: Android signing credentials only
+    instance_type: mac_mini_m2
+    max_build_duration: 10
+    environment:
+      java: 17
+      android_signing:
+        - blurly_upload_keystore
+    scripts:
+      - *verify_android_signing
+
   android-shorebird-build-aab:
     name: Android Shorebird Build AAB
     instance_type: mac_mini_m2
@@ -85,17 +133,15 @@ workflows:
       <<: *android_shorebird_env
       android_signing:
         - blurly_upload_keystore
-    cache:
-      cache_paths:
-        - ~/.pub-cache
-        - ~/.gradle/caches
+    cache: *flutter_cache
     scripts:
-      - *install_shorebird
-      - *fetch_dependencies
       - *verify_android_signing
+      - *fetch_dependencies
       - *verify_flutter
+      - *install_shorebird
       - name: Create Shorebird Android release
         script: |
+          set -euo pipefail
           : "${SHOREBIRD_TOKEN:?Set SHOREBIRD_TOKEN in the Codemagic shorebird group.}"
           : "${CM_KEYSTORE_PATH:?Upload the Android keystore to Codemagic with reference blurly_upload_keystore.}"
 
@@ -106,9 +152,12 @@ workflows:
       - build/**/outputs/**/*.aab
       - build/**/outputs/**/mapping.txt
       - flutter_drive.log
+      - test-results/**
+      - coverage/lcov.info
+      - test/**/failures/*.png
 
   android-shorebird-publish:
-    name: Android Shorebird Publish To Play
+    name: Android release to Google Play (draft)
     instance_type: mac_mini_m2
     max_build_duration: 60
     inputs:
@@ -125,17 +174,15 @@ workflows:
       <<: *android_play_env
       android_signing:
         - blurly_upload_keystore
-    cache:
-      cache_paths:
-        - ~/.pub-cache
-        - ~/.gradle/caches
+    cache: *flutter_cache
     scripts:
-      - *install_shorebird
-      - *fetch_dependencies
       - *verify_android_signing
+      - *fetch_dependencies
       - *verify_flutter
+      - *install_shorebird
       - name: Create Shorebird Android release
         script: |
+          set -euo pipefail
           : "${SHOREBIRD_TOKEN:?Set SHOREBIRD_TOKEN in the Codemagic shorebird group.}"
           : "${CM_KEYSTORE_PATH:?Upload the Android keystore to Codemagic with reference blurly_upload_keystore.}"
           : "${GCLOUD_SERVICE_ACCOUNT_CREDENTIALS:?Set GCLOUD_SERVICE_ACCOUNT_CREDENTIALS in the Codemagic play_store group.}"
@@ -147,6 +194,9 @@ workflows:
       - build/**/outputs/**/*.aab
       - build/**/outputs/**/mapping.txt
       - flutter_drive.log
+      - test-results/**
+      - coverage/lcov.info
+      - test/**/failures/*.png
     publishing:
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
@@ -159,26 +209,27 @@ workflows:
     max_build_duration: 60
     inputs:
       release_version:
-        description: Shorebird release version to patch, e.g. 1.0.0+12 or latest.
+        description: Exact Shorebird release to patch, e.g. 1.0.0+7. Check the installed version first.
         type: string
-        default: latest
     environment:
       <<: *android_shorebird_env
+      vars:
+        <<: *flutter_vars
+        SHOREBIRD_RELEASE_VERSION: ${{ inputs.release_version }}
       android_signing:
         - blurly_upload_keystore
-    cache:
-      cache_paths:
-        - ~/.pub-cache
-        - ~/.gradle/caches
+    cache: *flutter_cache
     scripts:
-      - *install_shorebird
-      - *fetch_dependencies
       - *verify_android_signing
+      - *fetch_dependencies
       - *verify_flutter
+      - *install_shorebird
       - name: Create Shorebird Android patch
         script: |
+          set -euo pipefail
           : "${SHOREBIRD_TOKEN:?Set SHOREBIRD_TOKEN in the Codemagic shorebird group.}"
           : "${CM_KEYSTORE_PATH:?Upload the Android keystore to Codemagic with reference blurly_upload_keystore.}"
 
           shorebird patch android \
-            --release-version=${{ inputs.release_version }}
+            --release-version="$SHOREBIRD_RELEASE_VERSION"
+    artifacts: *verification_artifacts

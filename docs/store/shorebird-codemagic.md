@@ -1,6 +1,8 @@
 # Shorebird And Codemagic Deployment
 
 Use this checklist for the first Android release and later Shorebird patches.
+For the complete testing strategy, deployment environments and a step-by-step
+YAML explanation, start with the [release workflow lab](../release-workflow.md).
 
 ## One-Time Shorebird Setup
 
@@ -64,9 +66,11 @@ blurly_upload_keystore
 Codemagic will expose the keystore as `CM_KEYSTORE_PATH`,
 `CM_KEYSTORE_PASSWORD`, `CM_KEY_ALIAS`, and `CM_KEY_PASSWORD`.
 
-If Codemagic fails with `Cannot recover key`, the keystore file and alias were
-found, but the key password is wrong. Edit the `blurly_upload_keystore` signing
-identity in Codemagic and confirm:
+If Codemagic fails in the signing recovery check, inspect the original keytool
+error now printed by `tool/ci/check_android_signing.sh`. `Cannot recover key`
+usually means the private key password is wrong. The JKS-format warning by
+itself does not fail signing. Edit the `blurly_upload_keystore` signing identity
+in Codemagic and confirm:
 
 - Keystore password: the store password used when creating the `.jks`.
 - Key alias: `blurly`.
@@ -127,7 +131,7 @@ with the upload keystore and registered as a Shorebird release.
 4. Download `app-release.aab` from the build artifacts.
 5. In Play Console, go to Testing > Internal testing.
 6. Create a new release and upload the Codemagic-built AAB.
-7. Release name: `1.0.0+1`.
+7. Release name: the version actually built from `pubspec.yaml`.
 8. Release notes: `Initial internal test release for Blurly.`
 9. Add your internal testers, copy the opt-in link, and roll out to internal
    testing.
@@ -177,14 +181,9 @@ After the closed testing requirement is satisfied:
 ## Future Updates
 
 For Dart-only fixes that do not change native Android/iOS files or app assets,
-run the `android-shorebird-patch` workflow. Use:
-
-```text
-latest
-```
-
-for the `release_version` input unless you intentionally need to patch a
-specific version such as `1.0.0+1`.
+run the `android-shorebird-patch` workflow. Enter the exact installed Shorebird
+release, such as `1.0.0+7`, for `release_version`. Confirm it in Shorebird Console
+first; the workflow no longer defaults to whichever release happens to be latest.
 
 For native changes, dependency changes with native code, permission changes, app
 icon changes, or asset changes, make a new store release instead of a Shorebird
