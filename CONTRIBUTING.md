@@ -16,11 +16,17 @@ Please read:
 
 ## Development Setup
 
+Use Flutter 3.41.2 from `.fvmrc` (FVM is recommended), or select that SDK in
+your shell before running these commands:
+
 ```sh
-flutter pub get
-flutter analyze
-flutter test
+fvm flutter pub get --enforce-lockfile
+fvm flutter analyze
+fvm flutter test
 ```
+
+Without FVM, run the same commands without the `fvm` prefix after selecting
+Flutter 3.41.2.
 
 Use the same architecture boundaries already in the project:
 
