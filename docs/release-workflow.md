@@ -79,7 +79,7 @@ also run the real TFLite pipeline on a device.
 
 ## 3. Run the checks locally
 
-Use Flutter **3.41.2**, matching `.fvmrc`, GitHub Actions and Codemagic. A newer
+Use Flutter **3.47.5**, matching `.fvmrc`, GitHub Actions and Codemagic. A newer
 global Flutter installation does not automatically use `.fvmrc`. If you use
 FVM, prefix the commands with `fvm`; otherwise select the pinned SDK directly.
 The lockfile is resolved for that SDK too. `--enforce-lockfile` makes CI fail
@@ -97,7 +97,7 @@ flutter test integration_test -d <android-device-id>
 ```
 
 If `--enforce-lockfile` reports that it would change dependencies, the lockfile
-was generated with a different Flutter/Dart toolchain. Select Flutter 3.41.2,
+was generated with a different Flutter/Dart toolchain. Select Flutter 3.47.5,
 run `flutter pub get` once without `--enforce-lockfile`, review the resulting
 `pubspec.lock` diff, and then rerun the enforced command. Do not fix this by
 removing the lockfile or by relaxing CI's enforcement.

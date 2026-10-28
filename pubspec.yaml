@@ -23,8 +23,8 @@ version: 1.0.0+7
 
 environment:
   # Keep local, GitHub Actions and Codemagic builds on the same toolchain.
-  sdk: ">=3.11.0 <3.11.1"
-  flutter: ">=3.41.2 <3.41.3"
+  sdk: ">=3.13.0 <3.14.0"
+  flutter: ">=3.47.0 <3.48.0"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions

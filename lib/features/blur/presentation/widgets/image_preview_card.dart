@@ -210,9 +210,8 @@ class _StatePill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text(
           text,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: colorScheme.onInverseSurface,
-          ),
+          style: Theme.of(context).textTheme.labelMedium
+              ?.copyWith(color: colorScheme.onInverseSurface),
         ),
       ),
     );

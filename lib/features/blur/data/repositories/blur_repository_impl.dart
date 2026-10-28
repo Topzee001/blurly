@@ -1,3 +1,7 @@
+// The constructor keeps descriptive public parameter names while assigning
+// private implementation fields.
+// ignore_for_file: prefer_initializing_formals
+
 import 'dart:isolate';
 import 'dart:typed_data';
 

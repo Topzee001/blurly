@@ -16,9 +16,8 @@ class BlurControls extends ConsumerWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest
+            .withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Padding(
