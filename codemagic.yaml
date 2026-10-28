@@ -2,10 +2,10 @@
 definitions:
   environment:
     flutter_env: &flutter_env
-      flutter: "3.41.2"
+      flutter: "3.47.5"
       java: 17
       vars: &flutter_vars
-        FLUTTER_VERSION: "3.41.2"
+        FLUTTER_VERSION: "3.47.5"
 
     android_shorebird_env: &android_shorebird_env
       <<: *flutter_env

@@ -88,30 +88,30 @@ recommended next steps.
 
 This repository was built and tested with:
 
-- Flutter `3.41.2` (enforced by `pubspec.yaml`)
-- Dart `3.11.0` (enforced by `pubspec.yaml`)
+- Flutter `3.47.5` (CI/Codemagic pin; `pubspec.yaml` allows 3.47.x)
+- Dart `3.13.4` (Flutter 3.47.5's bundled Dart; `pubspec.yaml` allows 3.13.x)
 - Android minSdk `24`
 - iOS `13.0+`
 
-The repository intentionally supports only this pinned toolchain so local,
-GitHub Actions and Codemagic dependency resolution stay identical. To upgrade
-Flutter, update `.fvmrc`, CI, Codemagic, this constraint and `pubspec.lock`
-together, then rerun the full checks.
+The repository targets the Flutter 3.47.x/Dart 3.13.x toolchain so local,
+GitHub Actions and Codemagic dependency resolution stay compatible. CI and
+Codemagic pin 3.47.5; if upgrading Flutter, update `.fvmrc`, CI, Codemagic,
+these constraints and `pubspec.lock` together, then rerun the full checks.
 
 ## Setup
 
 ```sh
 # Once per machine:
 dart pub global activate fvm
-fvm install 3.41.2
-fvm use 3.41.2
+fvm install 3.47.5
+fvm use 3.47.5
 
 # Project commands:
 fvm flutter pub get --enforce-lockfile
 fvm flutter run
 ```
 
-Without FVM, select Flutter 3.41.2 in your shell first and run the same
+Without FVM, select Flutter 3.47.5 in your shell first and run the same
 commands without the `fvm` prefix.
 
 ## Website

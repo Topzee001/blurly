@@ -35,9 +35,9 @@ void main() {
     final textFont = FontLoader('Roboto');
     for (final weight in ['Regular', 'Bold']) {
       textFont.addFont(
-        File(
-          'test/fonts/Roboto-$weight.ttf',
-        ).readAsBytes().then((bytes) => ByteData.sublistView(bytes)),
+        File('test/fonts/Roboto-$weight.ttf')
+            .readAsBytes()
+            .then((bytes) => ByteData.sublistView(bytes)),
       );
     }
     await textFont.load();
@@ -72,9 +72,8 @@ void main() {
                 ? ThemeMode.light
                 : ThemeMode.dark,
             builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(
-                context,
-              ).copyWith(textScaler: TextScaler.noScaling),
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.noScaling),
               child: child!,
             ),
             home: const RepaintBoundary(

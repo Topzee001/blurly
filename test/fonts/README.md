@@ -1,6 +1,6 @@
 # Golden test fonts
 
-`Roboto-Regular.ttf` and `Roboto-Bold.ttf` are copied from Flutter 3.41.2's
+`Roboto-Regular.ttf` and `Roboto-Bold.ttf` are bundled test fonts copied from
 `bin/cache/artifacts/material_fonts/` directory. The accompanying Apache 2.0
 license is preserved as `LICENSE.txt`.
 

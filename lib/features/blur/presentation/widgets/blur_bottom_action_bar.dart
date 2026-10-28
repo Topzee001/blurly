@@ -76,9 +76,8 @@ class _BarAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = Theme.of(
-      context,
-    ).textTheme.labelLarge?.copyWith(fontSize: 13, fontWeight: FontWeight.w600);
+    final labelStyle = Theme.of(context).textTheme.labelLarge
+        ?.copyWith(fontSize: 13, fontWeight: FontWeight.w600);
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
