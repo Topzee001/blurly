@@ -11,6 +11,7 @@ class BlurState {
     this.showOriginal = false,
     this.errorMessage,
     this.successMessage,
+    this.canOpenPermissionSettings = false,
     this.processingProgress = 0,
     this.isProcessingFinalizing = false,
     this.blurMode = BlurMode.background,
@@ -34,6 +35,7 @@ class BlurState {
   final bool showOriginal;
   final String? errorMessage;
   final String? successMessage;
+  final bool canOpenPermissionSettings;
   final double processingProgress;
   final bool isProcessingFinalizing;
   final BlurMode blurMode;
@@ -62,6 +64,7 @@ class BlurState {
     bool? showOriginal,
     Object? errorMessage = _sentinel,
     Object? successMessage = _sentinel,
+    bool? canOpenPermissionSettings,
     double? processingProgress,
     bool? isProcessingFinalizing,
     BlurMode? blurMode,
@@ -93,6 +96,8 @@ class BlurState {
       successMessage: identical(successMessage, _sentinel)
           ? this.successMessage
           : successMessage as String?,
+      canOpenPermissionSettings:
+          canOpenPermissionSettings ?? this.canOpenPermissionSettings,
       processingProgress: processingProgress ?? this.processingProgress,
       isProcessingFinalizing:
           isProcessingFinalizing ?? this.isProcessingFinalizing,

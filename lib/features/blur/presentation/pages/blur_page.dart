@@ -12,8 +12,25 @@ class BlurPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(
-      blurControllerProvider.select((state) => state.errorMessage),
-      (previous, next) => _showSnackBar(context, next, isError: true),
+      // Listen to the message and its recovery intent as one value.
+      blurControllerProvider.select(
+        (state) => (
+          message: state.errorMessage,
+          canOpenSettings: state.canOpenPermissionSettings,
+        ),
+      ),
+      (previous, next) => _showSnackBar(
+        context,
+        next.message,
+        isError: true,
+        actionLabel: next.canOpenSettings ? 'Open Settings' : null,
+        onAction: next.canOpenSettings
+            ? () async {
+                // Use the injected function so the action is testable.
+                await ref.read(permissionSettingsOpenerProvider)();
+              }
+            : null,
+      ),
     );
     ref.listen(
       blurControllerProvider.select((state) => state.successMessage),
@@ -87,6 +104,8 @@ class BlurPage extends ConsumerWidget {
     BuildContext context,
     String? message, {
     bool isError = false,
+    String? actionLabel,
+    VoidCallback? onAction,
   }) {
     if (message == null || message.isEmpty) {
       return;
@@ -101,9 +120,19 @@ class BlurPage extends ConsumerWidget {
         SnackBar(
           content: Text(message, style: TextStyle(color: foreground)),
           behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: isError ? 8 : 4),
           backgroundColor: isError
               ? colorScheme.error
               : colorScheme.inverseSurface,
+          // Temporary/general errors have no action. Permanent denial is the
+          // only state that supplies both action values.
+          action: actionLabel != null && onAction != null
+              ? SnackBarAction(
+                  label: actionLabel,
+                  textColor: foreground,
+                  onPressed: onAction,
+                )
+              : null,
         ),
       );
   }

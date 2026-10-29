@@ -6,6 +6,7 @@ import 'package:blurly/features/blur/domain/entities/blur_image.dart';
 import 'package:blurly/features/blur/domain/entities/blur_mode.dart';
 import 'package:blurly/features/blur/domain/entities/processing_options.dart';
 import 'package:blurly/features/blur/domain/entities/mask_edit.dart';
+import 'package:blurly/features/blur/domain/errors/media_permission_exception.dart';
 import 'package:blurly/features/blur/domain/usecases/pick_image.dart';
 import 'package:blurly/features/blur/domain/usecases/process_blur_image.dart';
 import 'package:blurly/features/blur/domain/usecases/save_blurred_image.dart';
@@ -61,6 +62,7 @@ class BlurController extends StateNotifier<BlurState> {
         showOriginal: false,
         errorMessage: null,
         successMessage: null,
+        canOpenPermissionSettings: false,
         isRefiningMask: false,
         showMaskOverlay: false,
         maskEdits: const [],
@@ -72,8 +74,19 @@ class BlurController extends StateNotifier<BlurState> {
         maskExpansion: 0,
       );
       await processSelectedImage();
+    } on MediaPermissionException catch (error) {
+      // Permission failures retain their structured recovery intent.
+      state = state.copyWith(
+        errorMessage: error.message,
+        canOpenPermissionSettings: error.canOpenSettings,
+      );
     } catch (error) {
-      state = state.copyWith(errorMessage: _friendlyError(error));
+      // Ordinary failures still use the existing friendly-error path and must
+      // never inherit a stale Open Settings action.
+      state = state.copyWith(
+        errorMessage: _friendlyError(error),
+        canOpenPermissionSettings: false,
+      );
     }
   }
 
@@ -385,7 +398,12 @@ class BlurController extends StateNotifier<BlurState> {
   }
 
   void _clearMessages() {
-    state = state.copyWith(errorMessage: null, successMessage: null);
+    // Clear message text and its associated recovery action together.
+    state = state.copyWith(
+      errorMessage: null,
+      successMessage: null,
+      canOpenPermissionSettings: false,
+    );
   }
 
   String _friendlyError(Object error) {
