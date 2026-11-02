@@ -11,12 +11,16 @@ class FakeBlurRepository implements BlurRepository {
     BlurImage? pickedImage,
     BlurImage? processedImage,
     this.processCompleter,
+    this.pickError,
+    this.cameraError,
   }) : pickedImage = pickedImage ?? sampleBlurImage('picked.png'),
        processedImage = processedImage ?? sampleBlurImage('processed.png');
 
   final BlurImage pickedImage;
   final BlurImage processedImage;
   Completer<BlurImage>? processCompleter;
+  Object? pickError;
+  Object? cameraError;
   int pickCount = 0;
   int cameraCount = 0;
   int processCount = 0;
@@ -27,12 +31,18 @@ class FakeBlurRepository implements BlurRepository {
   @override
   Future<BlurImage?> pickImageFromGallery() async {
     pickCount++;
+    if (pickError != null) {
+      throw pickError!;
+    }
     return pickedImage;
   }
 
   @override
   Future<BlurImage?> takePhoto() async {
     cameraCount++;
+    if (cameraError != null) {
+      throw cameraError!;
+    }
     return pickedImage.copyWith(name: 'camera.png');
   }
 

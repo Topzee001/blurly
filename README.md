@@ -9,6 +9,8 @@ and a minimal Riverpod UI.
 
 Repository: [github.com/Topzee001/blurly](https://github.com/Topzee001/blurly)
 
+reset photos permission: xcrun simctl privacy 55F50260-CAB2-47A0-A0DF-5D5DBDE2D5DF reset photos com.topzee.blurly
+
 ## Project Status
 
 Blurly is an early MVP. The app can pick/capture photos, process them locally,

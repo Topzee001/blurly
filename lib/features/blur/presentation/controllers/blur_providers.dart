@@ -13,6 +13,11 @@ import 'package:blurly/features/blur/presentation/controllers/blur_controller.da
 import 'package:blurly/features/blur/presentation/controllers/blur_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+final permissionSettingsOpenerProvider = Provider<Future<bool> Function()>(
+  (ref) => openAppSettings,
+);
 
 final imagePickerDataSourceProvider = Provider<ImagePickerDataSource>((ref) {
   return ImagePickerDataSource();
